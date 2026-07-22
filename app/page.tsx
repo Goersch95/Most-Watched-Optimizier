@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { RankedTable } from '@/components/RankedTable';
 import { RAIL_LINKS } from '@/lib/constants';
 import type { UploadResult } from '@/lib/types';
@@ -10,6 +11,13 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch('/api/logout', { method: 'POST' });
+    router.push('/login');
+    router.refresh();
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -42,7 +50,16 @@ export default function HomePage() {
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="text-2xl font-bold mb-1">Most Watched Optimizer</h1>
+      <div className="flex items-start justify-between gap-4 mb-1">
+        <h1 className="text-2xl font-bold">Most Watched Optimizer</h1>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="text-sm text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap"
+        >
+          Abmelden
+        </button>
+      </div>
       <p className="text-slate-400 mb-8">
         CSV aus dem Traffic-Dashboard hochladen, mit dem CMS abgleichen und die Top-Rails direkt bearbeiten.
       </p>
