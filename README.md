@@ -12,10 +12,11 @@ Login. Der CMS-Abgleich (`lib/cms-client.ts`) spricht den echten Scheduling-API-
 - `CMS_API_BASE_URL` muss auf die Basis-URL ohne `/products/{id}` zeigen, z. B.
   `https://graphql-proxy-staging.redbull.com/api/scheduling/v1/stv` - die ID wird pro
   Asset angehängt.
-- Der Contenttype wird aus dem Feld `content_type` der Antwort gelesen (case-insensitiv):
-  `clip` → Meistgesehene Clips, `film`/`episode` → Meistgesehene Sendungen, `live program`
-  wird komplett aus allen Ranglisten ausgeschlossen (taucht auch nicht unter "Nicht
-  zuordenbar" auf). Der Titel kommt aus `title_long`.
+- Der Contenttype wird aus dem Feld `content_type` der Antwort gelesen (case-insensitiv,
+  `_` wird wie Leerzeichen behandelt): `clip` → Meistgesehene Clips, `film`/`episode` →
+  Meistgesehene Sendungen, `live_program`/`video_channel` werden komplett aus allen
+  Ranglisten ausgeschlossen (tauchen auch nicht unter "Nicht zuordenbar" auf). Der Titel
+  kommt aus `title_long`.
 - `CMS_API_KEY` ist optional - die Staging-API ist ohne Bearer-Token erreichbar. Ist er
   gesetzt, wird er als `Authorization: Bearer …`-Header mitgeschickt, sonst läuft der
   Request ohne Auth-Header.

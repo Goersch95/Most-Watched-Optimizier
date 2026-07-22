@@ -22,21 +22,24 @@ function guessTypeFromId(assetId: string): ContentType {
 /**
  * Mapping der `content_type`-Werte aus der Scheduling-API
  * (https://graphql-proxy-staging.redbull.com/api/scheduling/v1/stv/products/{id},
- * z. B. "clip", "film", "episode", "live program") auf die App-Kategorien.
- * "live program" wird komplett aus den Ranglisten ausgeschlossen, nicht als
- * "unknown" geführt. Vergleich case-insensitiv, da die API-Werte klein-
- * geschrieben sind.
+ * z. B. "clip", "film", "episode", "live_program"/"live program",
+ * "video_channel") auf die App-Kategorien. "live program" und
+ * "video channel" werden komplett aus den Ranglisten ausgeschlossen, nicht
+ * als "unknown" geführt. Vergleich case-insensitiv und Unterstriche werden
+ * wie Leerzeichen behandelt, da die API beide Schreibweisen verwenden kann.
  */
 const CONTENT_TYPE_MAP: Record<string, ContentType | 'excluded'> = {
   clip: 'clip',
   film: 'show',
   episode: 'show',
   'live program': 'excluded',
+  'video channel': 'excluded',
 };
 
 function mapContentType(rawContentType: unknown): ContentType | 'excluded' | null {
   if (typeof rawContentType !== 'string') return null;
-  return CONTENT_TYPE_MAP[rawContentType.trim().toLowerCase()] ?? null;
+  const normalized = rawContentType.trim().toLowerCase().replace(/_/g, ' ');
+  return CONTENT_TYPE_MAP[normalized] ?? null;
 }
 
 type CmsMetadata =
