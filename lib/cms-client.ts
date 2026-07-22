@@ -5,7 +5,7 @@ const CMS_API_KEY = process.env.CMS_API_KEY;
 const BATCH_SIZE = 10;
 
 export function isCmsConfigured(): boolean {
-  return Boolean(CMS_API_BASE_URL && CMS_API_KEY);
+  return Boolean(CMS_API_BASE_URL);
 }
 
 /**
@@ -44,11 +44,11 @@ type CmsMetadata =
   | { excluded: false; title: string; contentType: ContentType };
 
 async function fetchMetadata(assetId: string): Promise<CmsMetadata | null> {
-  if (!CMS_API_BASE_URL || !CMS_API_KEY) return null;
+  if (!CMS_API_BASE_URL) return null;
 
   try {
     const res = await fetch(`${CMS_API_BASE_URL}/products/${encodeURIComponent(assetId)}`, {
-      headers: { Authorization: `Bearer ${CMS_API_KEY}` },
+      headers: CMS_API_KEY ? { Authorization: `Bearer ${CMS_API_KEY}` } : undefined,
       cache: 'no-store',
     });
 

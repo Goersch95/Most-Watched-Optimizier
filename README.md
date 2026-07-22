@@ -16,8 +16,11 @@ Login. Der CMS-Abgleich (`lib/cms-client.ts`) spricht den echten Scheduling-API-
   `clip` → Meistgesehene Clips, `film`/`episode` → Meistgesehene Sendungen, `live program`
   wird komplett aus allen Ranglisten ausgeschlossen (taucht auch nicht unter "Nicht
   zuordenbar" auf). Der Titel kommt aus `title_long`.
-- Ohne `CMS_API_BASE_URL` / `CMS_API_KEY`, oder wenn ein einzelner Request fehlschlägt
-  bzw. `content_type` einen unbekannten Wert liefert, greift eine Heuristik anhand des
+- `CMS_API_KEY` ist optional - die Staging-API ist ohne Bearer-Token erreichbar. Ist er
+  gesetzt, wird er als `Authorization: Bearer …`-Header mitgeschickt, sonst läuft der
+  Request ohne Auth-Header.
+- Ohne `CMS_API_BASE_URL`, oder wenn ein einzelner Request fehlschlägt bzw.
+  `content_type` einen unbekannten Wert liefert, greift eine Heuristik anhand des
   ID-Präfixes (`AA…` → Sendung, `PN…` → Clip) als Fallback. Die UI zeigt dazu einen
   Hinweis-Banner, solange die API nicht konfiguriert ist.
 - Pro hochgeladener CSV werden nur die ersten 200 gültigen Einträge berücksichtigt
@@ -54,7 +57,8 @@ npm run dev
 2. Build Pack: **Dockerfile** (liegt im Repo-Root, kein weiteres Setup nötig).
 3. Port: **3000**.
 4. Environment-Variablen in Coolify setzen (siehe `.env.example`):
-   - `CMS_API_BASE_URL`, `CMS_API_KEY` (sobald verfügbar)
+   - `CMS_API_BASE_URL` (erforderlich), `CMS_API_KEY` (optional, falls die API doch mal
+     einen Token verlangt)
    - `TEAM_USERNAME`, `TEAM_PASSWORD_HASH`, `SESSION_SECRET` (Login, siehe oben)
 5. Coolifys eigenes "HTTP Basic Authentication" **deaktiviert lassen** - das Tool hat jetzt
    seinen eigenen Login, zwei übereinanderliegende Logins wären nur verwirrend.
