@@ -7,13 +7,21 @@ Direktlink zum jeweiligen Rail-Editor im CMS.
 ## Aktueller Stand
 
 Das Grundgerüst steht: Upload, CSV-Parsing, Ranglisten-UI, Copy-Buttons, CMS-Rail-Links,
-Login. Der CMS-Abgleich (`lib/cms-client.ts`) ist als Platzhalter implementiert:
+Login. Der CMS-Abgleich (`lib/cms-client.ts`) spricht den echten Scheduling-API-Endpoint an:
 
-- Ohne `CMS_API_BASE_URL` / `CMS_API_KEY` läuft eine Heuristik anhand des ID-Präfixes
-  (`AA…` → Sendung, `PN…` → Clip), rein zur Vorschau. Die UI zeigt dazu einen Hinweis-Banner.
-- Sobald die echte CMS-API-Doku vorliegt, muss nur `fetchMetadata()` in
-  `lib/cms-client.ts` an den echten Endpoint/Response angepasst werden - der Rest des
-  Tools bleibt unverändert.
+- `CMS_API_BASE_URL` muss auf die Basis-URL ohne `/products/{id}` zeigen, z. B.
+  `https://graphql-proxy-staging.redbull.com/api/scheduling/v1/stv` - die ID wird pro
+  Asset angehängt.
+- Der Contenttype wird aus dem Feld `content_type` der Antwort gelesen: `Clip` →
+  Meistgesehene Clips, `Film`/`Episode` → Meistgesehene Sendungen, `LiveProgramm` wird
+  komplett aus allen Ranglisten ausgeschlossen (taucht auch nicht unter "Nicht
+  zuordenbar" auf).
+- Ohne `CMS_API_BASE_URL` / `CMS_API_KEY`, oder wenn ein einzelner Request fehlschlägt
+  bzw. `content_type` einen unbekannten Wert liefert, greift eine Heuristik anhand des
+  ID-Präfixes (`AA…` → Sendung, `PN…` → Clip) als Fallback. Die UI zeigt dazu einen
+  Hinweis-Banner, solange die API nicht konfiguriert ist.
+- Pro hochgeladener CSV werden nur die ersten 200 gültigen Einträge berücksichtigt
+  (`lib/constants.ts`, `MAX_CSV_ROWS`).
 
 ## Login
 
@@ -62,9 +70,9 @@ npm run dev
 
 ## Offene Punkte
 
-- Echte CMS-API anbinden (`lib/cms-client.ts`).
-- Verifizieren, ob Sendung/Clip zuverlässig über ein CMS-Feld (`contentType` o. ä.)
-  kommt, oder ob die ID-Präfix-Heuristik als Fallback bleibt.
+- Gegen die echte CMS-API testen, sobald ein gültiger `CMS_API_KEY` für
+  `graphql-proxy-staging.redbull.com` vorliegt (aktuell nur gegen die Doku/Feldnamen
+  implementiert, nicht live gegen die API verifiziert).
 - "Nicht sicher"-Warnung im Browser: prüfen, ob in Coolify für die Domain ein gültiges
   Let's-Encrypt-Zertifikat ausgestellt wurde (Domains-Einstellung → Zertifikatsstatus),
   und ob "Force HTTPS" aktiv ist. Falls die Domain über Cloudflare läuft: DNS-Eintrag auf

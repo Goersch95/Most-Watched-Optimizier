@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { MAX_CSV_ROWS } from './constants';
 import type { AssetRow } from './types';
 
 /**
@@ -16,6 +17,7 @@ export function parseTrafficCsv(csvText: string): AssetRow[] {
   return rows
     .slice(1)
     .filter((row) => row.length >= 2 && row[0]?.trim())
+    .slice(0, MAX_CSV_ROWS)
     .map((row) => ({
       assetId: row[0].trim(),
       viewCount: Number(row[1]) || 0,
