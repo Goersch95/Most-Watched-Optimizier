@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseTrafficCsv } from '@/lib/csv-parser';
+import { parsePastedRows, parseTrafficCsv } from '@/lib/csv-parser';
 import { enrichRows, isCmsConfigured } from '@/lib/cms-client';
-import type { UploadResult } from '@/lib/types';
+import type { AssetRow, UploadResult } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get('file');
+  const pastedText = formData.get('text');
 
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'Keine Datei hochgeladen.' }, { status: 400 });
+  let rows: AssetRow[];
+
+  if (file instanceof File) {
+    rows = parseTrafficCsv(await file.text());
+  } else if (typeof pastedText === 'string' && pastedText.trim()) {
+    rows = parsePastedRows(pastedText);
+  } else {
+    return NextResponse.json({ error: 'Keine Datei hochgeladen und kein Text eingefügt.' }, { status: 400 });
   }
-
-  const text = await file.text();
-  const rows = parseTrafficCsv(text);
 
   if (rows.length === 0) {
     return NextResponse.json(
-      { error: 'Die CSV enthält keine gültigen Zeilen. Erwartet werden Asset-ID und Session-Count je Zeile.' },
+      {
+        error:
+          'Keine gültigen Zeilen gefunden. Erwartet werden Asset-ID und Session-Count je Zeile (als CSV oder ' +
+          'abwechselnd Asset-ID/Views beim Einfügen).',
+      },
       { status: 400 }
     );
   }

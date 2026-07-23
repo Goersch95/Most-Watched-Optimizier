@@ -1,8 +1,8 @@
 # Most Watched Optimizer
 
-CSV-Upload aus dem Traffic-Dashboard → Abgleich mit der CMS-API → Ranglisten für die Rails
-"Meistgesehene Sendungen" und "Meistgesehene Clips", inkl. Copy-Button für Asset-IDs und
-Direktlink zum jeweiligen Rail-Editor im CMS.
+CSV-Upload (oder Text-Einfügen) aus dem Traffic-Dashboard → Abgleich mit der CMS-API →
+Ranglisten für die Rails "Meistgesehene Sendungen" und "Meistgesehene Clips", inkl.
+Copy-Button für Asset-IDs und Direktlink zum jeweiligen Rail-Editor im CMS.
 
 ## Aktueller Stand
 
@@ -24,8 +24,11 @@ Login. Der CMS-Abgleich (`lib/cms-client.ts`) spricht den echten Scheduling-API-
   `content_type` einen unbekannten Wert liefert, greift eine Heuristik anhand des
   ID-Präfixes (`AA…` → Sendung, `PN…` → Clip) als Fallback. Die UI zeigt dazu einen
   Hinweis-Banner, solange die API nicht konfiguriert ist.
-- Pro hochgeladener CSV werden nur die ersten 200 gültigen Einträge berücksichtigt
-  (`lib/constants.ts`, `MAX_CSV_ROWS`).
+- Pro Upload (CSV oder eingefügter Text) werden nur die ersten 200 gültigen Einträge
+  berücksichtigt (`lib/constants.ts`, `MAX_ROWS_PER_UPLOAD`).
+- Für User ohne Export-Rechte im Dashboard gibt es zusätzlich zum CSV-Upload ein
+  "Text einfügen"-Feld: aus dem Dashboard direkt kopierter Text (Zeilen abwechselnd
+  Asset-ID / Views) wird genauso ausgewertet (`lib/csv-parser.ts`, `parsePastedRows`).
 
 ## Login
 

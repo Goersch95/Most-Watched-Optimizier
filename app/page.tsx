@@ -10,6 +10,7 @@ export default function HomePage() {
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pastedText, setPastedText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -19,33 +20,44 @@ export default function HomePage() {
     router.refresh();
   }
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  async function submitFormData(formData: FormData) {
     setLoading(true);
     setError(null);
     setResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? 'Unbekannter Fehler beim Verarbeiten der CSV.');
+        setError(data.error ?? 'Unbekannter Fehler beim Verarbeiten der Daten.');
         return;
       }
 
       setResult(data as UploadResult);
     } catch {
-      setError('Upload fehlgeschlagen. Bitte erneut versuchen.');
+      setError('Verarbeitung fehlgeschlagen. Bitte erneut versuchen.');
     } finally {
       setLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    await submitFormData(formData);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  async function handlePasteSubmit() {
+    if (!pastedText.trim()) return;
+
+    const formData = new FormData();
+    formData.append('text', pastedText);
+    await submitFormData(formData);
   }
 
   return (
@@ -74,6 +86,31 @@ export default function HomePage() {
         />
         {loading && <p className="mt-3 text-sm text-slate-400">Wird verarbeitet…</p>}
       </div>
+
+      <details className="mb-8 rounded border border-slate-700 p-6">
+        <summary className="cursor-pointer text-sm font-medium text-slate-300">
+          Kein CSV-Export möglich? Text einfügen
+        </summary>
+        <p className="mt-3 text-sm text-slate-400">
+          Aus dem Dashboard direkt die Tabelle markieren und kopieren (Zeilen abwechselnd Asset-ID und Views) und
+          hier einfügen.
+        </p>
+        <textarea
+          value={pastedText}
+          onChange={(e) => setPastedText(e.target.value)}
+          rows={6}
+          placeholder={'AA1IHU82IXXJIA9UX4NV\n4744\nAAZ07YTUP9UF7BL1G2XR\n1104'}
+          className="mt-3 w-full rounded border border-slate-700 bg-slate-900 p-3 text-sm text-slate-200 placeholder:text-slate-600"
+        />
+        <button
+          type="button"
+          onClick={handlePasteSubmit}
+          disabled={loading || !pastedText.trim()}
+          className="mt-3 rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Verarbeiten
+        </button>
+      </details>
 
       {error && (
         <div className="mb-8 rounded border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-300">

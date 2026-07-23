@@ -3,5 +3,8 @@ export const RAIL_LINKS = {
   clips: 'https://playnet.redbull.com/admin/content/rails/ae41fcf3-42dc-4038-8c98-be1bb9b6a371',
 } as const;
 
-/** Pro hochgeladener CSV werden nur die ersten 200 gültigen Einträge berücksichtigt. */
-export const MAX_CSV_ROWS = 200;
+/**
+ * Pro Upload (CSV-Datei oder eingefügter Text) werden nur die ersten 200
+ * gültigen Einträge berücksichtigt.
+ */
+export const MAX_ROWS_PER_UPLOAD = 200;
