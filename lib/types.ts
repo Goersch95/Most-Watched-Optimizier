@@ -3,7 +3,7 @@ export type AssetRow = {
   viewCount: number;
 };
 
-export type ContentType = 'show' | 'clip' | 'unknown';
+export type ContentType = 'show' | 'clip' | 'liveProgram' | 'tvChannel' | 'unknown';
 
 export type EnrichedRow = AssetRow & {
   title: string;
@@ -13,6 +13,8 @@ export type EnrichedRow = AssetRow & {
 export type UploadResult = {
   shows: EnrichedRow[];
   clips: EnrichedRow[];
+  liveProgram: EnrichedRow[];
+  tvChannel: EnrichedRow[];
   unknown: EnrichedRow[];
   cmsConnected: boolean;
 };

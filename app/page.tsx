@@ -132,6 +132,13 @@ export default function HomePage() {
         </div>
       )}
 
+      {result && (result.liveProgram.length > 0 || result.tvChannel.length > 0) && (
+        <div className="mt-8 flex flex-col lg:flex-row gap-8">
+          <RankedTable title="Meistgesehene Live Programme" rows={result.liveProgram} />
+          <RankedTable title="Meistgesehene TV Kanäle" rows={result.tvChannel} />
+        </div>
+      )}
+
       {result && result.unknown.length > 0 && (
         <div className="mt-8">
           <h2 className="text-lg font-semibold mb-2 text-slate-400">Nicht zuordenbar</h2>

@@ -23,28 +23,28 @@ function guessTypeFromId(assetId: string): ContentType {
  * Mapping der `content_type`-Werte aus der Scheduling-API
  * (https://graphql-proxy-staging.redbull.com/api/scheduling/v1/stv/products/{id},
  * z. B. "clip", "film", "episode", "live_program"/"live program",
- * "video_channel") auf die App-Kategorien. "live program" und
- * "video channel" werden komplett aus den Ranglisten ausgeschlossen, nicht
- * als "unknown" geführt. Vergleich case-insensitiv und Unterstriche werden
- * wie Leerzeichen behandelt, da die API beide Schreibweisen verwenden kann.
+ * "video_channel") auf die App-Kategorien. Vergleich case-insensitiv und
+ * Unterstriche werden wie Leerzeichen behandelt, da die API beide
+ * Schreibweisen verwenden kann.
  */
-const CONTENT_TYPE_MAP: Record<string, ContentType | 'excluded'> = {
+const CONTENT_TYPE_MAP: Record<string, ContentType> = {
   clip: 'clip',
   film: 'show',
   episode: 'show',
-  'live program': 'excluded',
-  'video channel': 'excluded',
+  'live program': 'liveProgram',
+  'video channel': 'tvChannel',
 };
 
-function mapContentType(rawContentType: unknown): ContentType | 'excluded' | null {
+function mapContentType(rawContentType: unknown): ContentType | null {
   if (typeof rawContentType !== 'string') return null;
   const normalized = rawContentType.trim().toLowerCase().replace(/_/g, ' ');
   return CONTENT_TYPE_MAP[normalized] ?? null;
 }
 
-type CmsMetadata =
-  | { excluded: true }
-  | { excluded: false; title: string; contentType: ContentType };
+type CmsMetadata = {
+  title: string;
+  contentType: ContentType;
+};
 
 async function fetchMetadata(assetId: string): Promise<CmsMetadata | null> {
   if (!CMS_API_BASE_URL) return null;
@@ -58,16 +58,10 @@ async function fetchMetadata(assetId: string): Promise<CmsMetadata | null> {
     if (!res.ok) return null;
 
     const data = await res.json();
-    const mapped = mapContentType(data.content_type);
-
-    if (mapped === 'excluded') {
-      return { excluded: true };
-    }
 
     return {
-      excluded: false,
       title: typeof data.title_long === 'string' ? data.title_long : assetId,
-      contentType: mapped ?? guessTypeFromId(assetId),
+      contentType: mapContentType(data.content_type) ?? guessTypeFromId(assetId),
     };
   } catch {
     return null;
@@ -75,20 +69,16 @@ async function fetchMetadata(assetId: string): Promise<CmsMetadata | null> {
 }
 
 async function enrichBatch(rows: AssetRow[]): Promise<EnrichedRow[]> {
-  const results = await Promise.all(
+  return Promise.all(
     rows.map(async (row) => {
       const meta = await fetchMetadata(row.assetId);
-      if (meta?.excluded) return null;
-
       return {
         ...row,
-        title: meta?.excluded === false ? meta.title : row.assetId,
-        contentType: meta?.excluded === false ? meta.contentType : guessTypeFromId(row.assetId),
+        title: meta?.title ?? row.assetId,
+        contentType: meta?.contentType ?? guessTypeFromId(row.assetId),
       };
     })
   );
-
-  return results.filter((row): row is EnrichedRow => row !== null);
 }
 
 export async function enrichRows(rows: AssetRow[]): Promise<EnrichedRow[]> {

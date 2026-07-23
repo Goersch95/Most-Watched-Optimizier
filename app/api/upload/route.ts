@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
   const result: UploadResult = {
     shows: enriched.filter((r) => r.contentType === 'show').sort(byViewsDesc),
     clips: enriched.filter((r) => r.contentType === 'clip').sort(byViewsDesc),
+    liveProgram: enriched.filter((r) => r.contentType === 'liveProgram').sort(byViewsDesc),
+    tvChannel: enriched.filter((r) => r.contentType === 'tvChannel').sort(byViewsDesc),
     unknown: enriched.filter((r) => r.contentType === 'unknown').sort(byViewsDesc),
     cmsConnected: isCmsConfigured(),
   };
