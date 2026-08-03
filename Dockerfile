@@ -1,5 +1,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
+# python3/make/g++: Fallback, falls better-sqlite3 kein passendes Prebuilt-Binary
+# für diese Plattform findet und aus dem Quellcode kompilieren muss.
+RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json* ./
 RUN npm ci
 

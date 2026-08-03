@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SESSION_COOKIE_NAME, verifySessionToken } from '@/lib/session';
 
-const PUBLIC_PATHS = ['/login', '/api/login'];
+// /api/indexing-checker/poll wird von einem externen Scheduler (Coolify
+// Scheduled Task) aufgerufen, nicht über den Browser - der Endpoint prüft
+// stattdessen sein eigenes Secret (INDEXING_POLL_SECRET).
+const PUBLIC_PATHS = ['/login', '/api/login', '/api/indexing-checker/poll'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

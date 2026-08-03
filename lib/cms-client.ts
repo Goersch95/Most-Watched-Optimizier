@@ -9,6 +9,28 @@ export function isCmsConfigured(): boolean {
 }
 
 /**
+ * Rohes Produkt-JSON von der Scheduling-API. Wird sowohl vom Most-Watched-
+ * Abgleich (Titel/Contenttype) als auch vom Indexierungs-Checker (Publish-
+ * Datum) genutzt, damit es nur einen Fetch-Codepfad gegen diese API gibt.
+ */
+export async function fetchCmsProduct(assetId: string): Promise<Record<string, unknown> | null> {
+  if (!CMS_API_BASE_URL) return null;
+
+  try {
+    const res = await fetch(`${CMS_API_BASE_URL}/products/${encodeURIComponent(assetId)}`, {
+      headers: CMS_API_KEY ? { Authorization: `Bearer ${CMS_API_KEY}` } : undefined,
+      cache: 'no-store',
+    });
+
+    if (!res.ok) return null;
+
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fallback solange die CMS-API nicht erreichbar/konfiguriert ist oder
  * `content_type` einen unbekannten Wert liefert. Basierend auf dem
  * Sample-Export: IDs mit "AA" sehen aus wie Sendungen, "PN" wie Clips.
@@ -47,25 +69,13 @@ type CmsMetadata = {
 };
 
 async function fetchMetadata(assetId: string): Promise<CmsMetadata | null> {
-  if (!CMS_API_BASE_URL) return null;
+  const data = await fetchCmsProduct(assetId);
+  if (!data) return null;
 
-  try {
-    const res = await fetch(`${CMS_API_BASE_URL}/products/${encodeURIComponent(assetId)}`, {
-      headers: CMS_API_KEY ? { Authorization: `Bearer ${CMS_API_KEY}` } : undefined,
-      cache: 'no-store',
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-
-    return {
-      title: typeof data.title_long === 'string' ? data.title_long : assetId,
-      contentType: mapContentType(data.content_type) ?? guessTypeFromId(assetId),
-    };
-  } catch {
-    return null;
-  }
+  return {
+    title: typeof data.title_long === 'string' ? data.title_long : assetId,
+    contentType: mapContentType(data.content_type) ?? guessTypeFromId(assetId),
+  };
 }
 
 async function enrichBatch(rows: AssetRow[]): Promise<EnrichedRow[]> {

@@ -1,0 +1,27 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { ingestId } from '@/lib/indexing-checker/pipeline';
+import { parseIdsFromXlsx } from '@/lib/indexing-checker/xlsx-parser';
+
+export async function POST(req: NextRequest) {
+  const formData = await req.formData();
+  const file = formData.get('file');
+
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: 'Keine Datei hochgeladen.' }, { status: 400 });
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const ids = await parseIdsFromXlsx(buffer);
+
+  if (ids.length === 0) {
+    return NextResponse.json({ error: 'Keine IDs in der Excel-Datei gefunden.' }, { status: 400 });
+  }
+
+  const results = await Promise.all(ids.map(async (id) => ({ id, ...(await ingestId(id)) })));
+  const failed = results.filter((r) => !r.ok).map((r) => ({ id: r.id, error: r.error }));
+
+  return NextResponse.json({
+    ingested: results.length - failed.length,
+    failed,
+  });
+}

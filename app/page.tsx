@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AppNav } from '@/components/AppNav';
 import { RankedTable } from '@/components/RankedTable';
 import { RAIL_LINKS } from '@/lib/constants';
 import type { UploadResult } from '@/lib/types';
@@ -62,6 +63,7 @@ export default function HomePage() {
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-10">
+      <AppNav />
       <div className="flex items-start justify-between gap-4 mb-1">
         <h1 className="text-2xl font-bold">Most Watched Optimizer</h1>
         <button

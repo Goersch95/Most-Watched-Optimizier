@@ -30,6 +30,48 @@ Login. Der CMS-Abgleich (`lib/cms-client.ts`) spricht den echten Scheduling-API-
   "Text einfügen"-Feld: aus dem Dashboard direkt kopierter Text (Zeilen abwechselnd
   Asset-ID / Views) wird genauso ausgewertet (`lib/csv-parser.ts`, `parsePastedRows`).
 
+## Google-Indexierungs-Checker
+
+Zweite Rubrik (eigene Seite `/indexing-checker`, per Tab-Nav oben erreichbar), misst wie
+lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von ServusTV On
+über Google auffindbar ist.
+
+- **T1 (Publish)**: Excel-Upload (`.xlsx`, eine ID pro Zeile) → für jede ID wird
+  `vis_start` aus derselben Scheduling-API geholt, die auch der Most-Watched-Abgleich
+  nutzt (`lib/cms-client.ts` → `fetchCmsProduct`). Die URL wird direkt aus der ID gebaut:
+  `https://www.servustv.com/de/page/<ID>`.
+- **Live-Check**: eigener HTTP-Request auf die URL (kein Google-Call, kostet nichts),
+  bestätigt dass die Seite wirklich online ist, bevor Google-Polling startet.
+- **T2 (Indexiert)**: Polling gegen Googles offizielle **Custom Search JSON API**
+  (Programmable Search Engine) - keine Search-Console-Abfrage (kein Zugriff auf die
+  ServusTV-On-Property) und kein Scraping (Blocking-Risiko würde die Messung entwerten).
+  Intervall dünnt sich aus: erste 2h alle 30 Min, dann stündlich, dann alle 3h, danach täglich.
+  **Hartes Limit von 100 Anfragen/Tag** wird im Code selbst durchgesetzt
+  (`lib/indexing-checker/pipeline.ts`, `DAILY_SERP_QUOTA`) - damit bleibt es immer im
+  Google-Gratiskontingent, auch bei einem Bug oder vielen offenen IDs gleichzeitig.
+- **Persistenz**: SQLite-Datei (`better-sqlite3`), Pfad über `INDEXING_DB_PATH`
+  konfigurierbar. **Muss auf ein Coolify Persistent-Storage-Volume zeigen**, sonst gehen
+  alle Daten bei jedem Redeploy verloren.
+- **Scheduler**: kein In-App-Cron (würde bei jedem Redeploy/Neustart verloren gehen).
+  Stattdessen ruft ein **Coolify Scheduled Task** (Dashboard → "Scheduled Tasks") alle
+  15-30 Minuten intern auf:
+  ```bash
+  curl -s -X POST http://localhost:3000/api/indexing-checker/poll \
+    -H "Authorization: Bearer $INDEXING_POLL_SECRET"
+  ```
+  Der Endpoint ist bewusst von der normalen Session-Cookie-Prüfung ausgenommen
+  (`middleware.ts`) und stattdessen über `INDEXING_POLL_SECRET` geschützt.
+- **Setup Custom Search JSON API**: eigenes Google-Cloud-Projekt anlegen, API-Key
+  erzeugen, unter [programmablesearchengine.google.com](https://programmablesearchengine.google.com/)
+  eine Search Engine auf "gesamtes Web durchsuchen" stellen → liefert die `cx`-ID. Beides
+  in `GOOGLE_CSE_API_KEY` / `GOOGLE_CSE_CX` eintragen. Kein Vertrag mit einem
+  Drittanbieter (SerpApi/DataForSEO) nötig.
+- **Annahme, die verifiziert werden sollte**: `vis_start` aus der API wird als T1
+  (realer Publish-Zeitpunkt) angenommen - die API hat kein Feld, das explizit
+  "publish_date" heißt. Falls sich das an echten Daten als falsch herausstellt, ist
+  `lib/indexing-checker/servustv.ts` (`fetchPublishDate`) der einzige Ort, der angepasst
+  werden muss.
+
 ## Login
 
 Eigene Login-Seite (`/login`) statt Browser-Basic-Auth-Popup, geschützt durch ein
@@ -64,9 +106,20 @@ npm run dev
    - `CMS_API_BASE_URL` (erforderlich), `CMS_API_KEY` (optional, falls die API doch mal
      einen Token verlangt)
    - `TEAM_USERNAME`, `TEAM_PASSWORD_HASH`, `SESSION_SECRET` (Login, siehe oben)
+   - `GOOGLE_CSE_API_KEY`, `GOOGLE_CSE_CX`, `INDEXING_POLL_SECRET`, `INDEXING_DB_PATH`
+     (Indexierungs-Checker, siehe oben)
 5. Coolifys eigenes "HTTP Basic Authentication" **deaktiviert lassen** - das Tool hat jetzt
    seinen eigenen Login, zwei übereinanderliegende Logins wären nur verwirrend.
 6. Domain/Subdomain in Coolify zuweisen, Deploy anstoßen.
+7. **Persistent Storage**: unter "Persistent Storage" ein Volume anlegen, das auf
+   `/app/data` im Container zeigt (oder den Pfad aus `INDEXING_DB_PATH`, falls
+   abweichend gesetzt) - sonst verliert der Indexierungs-Checker bei jedem Redeploy
+   alle bisherigen Messungen.
+8. **Scheduled Task**: unter "Scheduled Tasks" einen neuen Task anlegen, Intervall alle
+   15-30 Minuten, Command:
+   ```bash
+   curl -s -X POST http://localhost:3000/api/indexing-checker/poll -H "Authorization: Bearer $INDEXING_POLL_SECRET"
+   ```
 
 ## Security-Hardening (bereits umgesetzt)
 
