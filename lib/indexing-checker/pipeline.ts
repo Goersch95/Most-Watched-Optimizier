@@ -17,7 +17,11 @@ export async function ingestId(assetId: string): Promise<{ ok: boolean; error?: 
   const t1 = await fetchPublishDate(assetId);
 
   if (!t1) {
-    return { ok: false, error: `Kein Publish-Datum (vis_start) über die CMS-API für "${assetId}" gefunden.` };
+    return { ok: false, error: `Kein Publish-Datum (play_start) über die CMS-API für "${assetId}" gefunden.` };
+  }
+
+  if (Number.isNaN(new Date(t1).getTime())) {
+    return { ok: false, error: `Publish-Datum "${t1}" für "${assetId}" ist kein gültiges Datum.` };
   }
 
   const { weekday, slot } = classifySlot(t1);

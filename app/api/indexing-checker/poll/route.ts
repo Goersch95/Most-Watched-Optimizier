@@ -15,6 +15,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Nicht autorisiert.' }, { status: 401 });
   }
 
-  const result = await runPollingPass();
-  return NextResponse.json(result);
+  try {
+    const result = await runPollingPass();
+    return NextResponse.json(result);
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Unerwarteter Fehler beim Polling: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
+    );
+  }
 }
