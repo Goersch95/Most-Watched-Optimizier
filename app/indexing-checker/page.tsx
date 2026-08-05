@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppNav } from '@/components/AppNav';
+import { formatViennaDateTime } from '@/lib/indexing-checker/schedule';
 
 type IndexingStatus = 'pending' | 'live' | 'found';
 
@@ -141,7 +142,10 @@ export default function IndexingCheckerPage() {
           onChange={handleUpload}
           className="block w-full text-sm text-slate-300 file:mr-4 file:rounded file:border-0 file:bg-red-600 file:px-4 file:py-2 file:text-white hover:file:bg-red-500 file:cursor-pointer"
         />
-        <p className="mt-3 text-xs text-slate-500">Excel (.xlsx) mit einer ID pro Zeile in der ersten Spalte.</p>
+        <p className="mt-3 text-xs text-slate-500">
+          Excel (.xlsx) mit einer Spalte "ID" (z. B. der Dashboard-Export "AssetListExport") oder einfach eine ID
+          pro Zeile in Spalte A.
+        </p>
         {uploading && <p className="mt-3 text-sm text-slate-400">Wird verarbeitet…</p>}
         {uploadSummary && <p className="mt-3 text-sm text-emerald-400">{uploadSummary}</p>}
       </div>
@@ -206,8 +210,8 @@ export default function IndexingCheckerPage() {
                   </td>
                   <td className="px-3 py-2">{row.weekday}</td>
                   <td className="px-3 py-2">{row.slot}</td>
-                  <td className="px-3 py-2">{formatDateTime(row.t1_publish)}</td>
-                  <td className="px-3 py-2">{row.t2_indexed ? formatDateTime(row.t2_indexed) : '–'}</td>
+                  <td className="px-3 py-2">{formatViennaDateTime(row.t1_publish)}</td>
+                  <td className="px-3 py-2">{row.t2_indexed ? formatViennaDateTime(row.t2_indexed) : '–'}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {row.delta_minutes != null ? formatDelta(row.delta_minutes) : '–'}
                   </td>
@@ -293,8 +297,4 @@ function formatDelta(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = Math.round(minutes % 60);
   return hours > 0 ? `${hours}h ${mins}min` : `${mins}min`;
-}
-
-function formatDateTime(iso: string): string {
-  return iso.replace('T', ' ').slice(0, 16);
 }

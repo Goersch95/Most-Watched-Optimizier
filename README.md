@@ -36,10 +36,14 @@ Zweite Rubrik (eigene Seite `/indexing-checker`, per Tab-Nav oben erreichbar), m
 lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von ServusTV On
 über Google auffindbar ist.
 
-- **T1 (Publish)**: Excel-Upload (`.xlsx`, eine ID pro Zeile) → für jede ID wird
-  `vis_start` aus derselben Scheduling-API geholt, die auch der Most-Watched-Abgleich
-  nutzt (`lib/cms-client.ts` → `fetchCmsProduct`). Die URL wird direkt aus der ID gebaut:
-  `https://www.servustv.com/de/page/<ID>`.
+- **Excel-Upload**: `.xlsx` mit einer Spalte "ID" (passend zum Dashboard-Export
+  "AssetListExport", ID steht dort z. B. in Spalte D) - die Spalte wird über die
+  Kopfzeile gesucht, nicht fix als Spalte A angenommen. Ohne erkennbare "ID"-Spalte
+  fällt der Parser auf Spalte A zurück (`lib/indexing-checker/xlsx-parser.ts`).
+- **T1 (Publish)**: für jede ID wird `play_start` aus derselben Scheduling-API geholt,
+  die auch der Most-Watched-Abgleich nutzt (`lib/cms-client.ts` → `fetchCmsProduct`,
+  bestätigtes Feld - entspricht "Current Sunrise" im Dashboard-Export). Die URL wird
+  direkt aus der ID gebaut: `https://www.servustv.com/de/page/<ID>`.
 - **Live-Check**: eigener HTTP-Request auf die URL (kein Google-Call, kostet nichts),
   bestätigt dass die Seite wirklich online ist, bevor Google-Polling startet.
 - **T2 (Indexiert)**: Polling gegen Googles offizielle **Custom Search JSON API**
@@ -66,11 +70,10 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   eine Search Engine auf "gesamtes Web durchsuchen" stellen → liefert die `cx`-ID. Beides
   in `GOOGLE_CSE_API_KEY` / `GOOGLE_CSE_CX` eintragen. Kein Vertrag mit einem
   Drittanbieter (SerpApi/DataForSEO) nötig.
-- **Annahme, die verifiziert werden sollte**: `vis_start` aus der API wird als T1
-  (realer Publish-Zeitpunkt) angenommen - die API hat kein Feld, das explizit
-  "publish_date" heißt. Falls sich das an echten Daten als falsch herausstellt, ist
-  `lib/indexing-checker/servustv.ts` (`fetchPublishDate`) der einzige Ort, der angepasst
-  werden muss.
+- **Zeitzone**: CMS-Timestamps kommen als UTC (`...T04:55:00Z`), das Sende-Raster ist
+  aber in Wiener Lokalzeit gedacht. Slot-/Wochentag-Zuordnung und die Zeit-Anzeige in der
+  UI konvertieren deshalb explizit nach `Europe/Vienna` (inkl. Sommer-/Winterzeit) über
+  `Intl.DateTimeFormat` (`lib/indexing-checker/schedule.ts`).
 
 ## Login
 
