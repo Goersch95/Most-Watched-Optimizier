@@ -63,9 +63,14 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   Stattdessen ruft ein **Coolify Scheduled Task** (Dashboard → "Scheduled Tasks") alle
   15-30 Minuten intern auf:
   ```bash
-  curl -s -X POST http://localhost:3000/api/indexing-checker/poll \
-    -H "Authorization: Bearer $INDEXING_POLL_SECRET"
+  wget -qO- --header="Authorization: Bearer $INDEXING_POLL_SECRET" --post-data='' \
+    http://127.0.0.1:3000/api/indexing-checker/poll
   ```
+  `wget` statt `curl` (im Alpine-Image nicht installiert) und `127.0.0.1` statt
+  `localhost` (löste im Container zuerst auf `::1`/IPv6 auf, wo nichts lauscht -
+  "Connection refused"). Der Task muss außerdem im "Container name"-Feld auf die
+  App-Resource zeigen, sonst läuft er im separaten Coolify-Runner-Container ohne
+  Zugriff auf die App.
   Der Endpoint ist bewusst von der normalen Session-Cookie-Prüfung ausgenommen
   (`middleware.ts`) und stattdessen über `INDEXING_POLL_SECRET` geschützt.
 - **Setup Custom Search JSON API**: eigenes Google-Cloud-Projekt anlegen, API-Key
@@ -122,10 +127,12 @@ npm run dev
    abweichend gesetzt) - sonst verliert der Indexierungs-Checker bei jedem Redeploy
    alle bisherigen Messungen.
 8. **Scheduled Task**: unter "Scheduled Tasks" einen neuen Task anlegen, Intervall alle
-   15-30 Minuten, Command:
+   15-30 Minuten, **"Container name"** auf die App-Resource setzen (sonst läuft der Task
+   im separaten Coolify-Runner-Container ohne Zugriff auf die App), Command:
    ```bash
-   curl -s -X POST http://localhost:3000/api/indexing-checker/poll -H "Authorization: Bearer $INDEXING_POLL_SECRET"
+   wget -qO- --header="Authorization: Bearer $INDEXING_POLL_SECRET" --post-data='' http://127.0.0.1:3000/api/indexing-checker/poll
    ```
+   (`wget` statt `curl`, `127.0.0.1` statt `localhost` - siehe Hinweis oben)
 
 ## Security-Hardening (bereits umgesetzt)
 
