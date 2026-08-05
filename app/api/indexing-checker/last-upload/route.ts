@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getLastUpload, getUploadedFileBuffer } from '@/lib/indexing-checker/db';
+import { clearLastUpload, getLastUpload, getUploadedFileBuffer } from '@/lib/indexing-checker/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,4 +17,9 @@ export async function GET() {
       'Content-Disposition': `attachment; filename="${meta.filename.replace(/"/g, '')}"`,
     },
   });
+}
+
+export async function DELETE() {
+  clearLastUpload();
+  return NextResponse.json({ ok: true });
 }

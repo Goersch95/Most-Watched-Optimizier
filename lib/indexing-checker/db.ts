@@ -17,10 +17,18 @@ export type LastUpload = {
   failed: number;
 };
 
+export type LastPollRun = {
+  at: string;
+  checked: number;
+  foundNow: number;
+  quotaUsed: number;
+};
+
 type Store = {
   checks: Record<string, IndexingCheckRow>;
   quota: Record<string, number>;
   lastUpload: LastUpload | null;
+  lastPollRun: LastPollRun | null;
 };
 
 const DB_PATH = process.env.INDEXING_DB_PATH || path.join(process.cwd(), 'data', 'indexing-checker.json');
@@ -33,15 +41,17 @@ function load(): Store {
 
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
+  const empty: Store = { checks: {}, quota: {}, lastUpload: null, lastPollRun: null };
+
   if (fs.existsSync(DB_PATH)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-      store = { checks: {}, quota: {}, lastUpload: null, ...parsed };
+      store = { ...empty, ...parsed };
     } catch {
-      store = { checks: {}, quota: {}, lastUpload: null };
+      store = empty;
     }
   } else {
-    store = { checks: {}, quota: {}, lastUpload: null };
+    store = empty;
   }
 
   return store as Store;
@@ -151,6 +161,27 @@ export function getLastUpload(): LastUpload | null {
 export function getUploadedFileBuffer(): Buffer | null {
   if (!fs.existsSync(UPLOAD_FILE_PATH)) return null;
   return fs.readFileSync(UPLOAD_FILE_PATH);
+}
+
+/** Entfernt nur die gespeicherte Datei + Metadaten, nicht die bereits erfassten Checks. */
+export function clearLastUpload(): void {
+  if (fs.existsSync(UPLOAD_FILE_PATH)) {
+    fs.unlinkSync(UPLOAD_FILE_PATH);
+  }
+
+  const s = load();
+  s.lastUpload = null;
+  persist();
+}
+
+export function setLastPollRun(run: LastPollRun): void {
+  const s = load();
+  s.lastPollRun = run;
+  persist();
+}
+
+export function getLastPollRun(): LastPollRun | null {
+  return load().lastPollRun;
 }
 
 export type { IndexingCheckRow, IndexingStatus };

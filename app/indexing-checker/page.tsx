@@ -41,11 +41,20 @@ type LastUpload = {
   failed: number;
 };
 
+type LastPollRun = {
+  at: string;
+  checked: number;
+  foundNow: number;
+  quotaUsed: number;
+};
+
 export default function IndexingCheckerPage() {
   const [rows, setRows] = useState<IndexingCheckRow[]>([]);
   const [lastUpload, setLastUpload] = useState<LastUpload | null>(null);
+  const [lastPollRun, setLastPollRun] = useState<LastPollRun | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadSummary, setUploadSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,8 +73,23 @@ export default function IndexingCheckerPage() {
       const data = await res.json();
       setRows(data.checks ?? []);
       setLastUpload(data.lastUpload ?? null);
+      setLastPollRun(data.lastPollRun ?? null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDeleteUpload() {
+    if (!confirm('Gespeicherte Datei wirklich löschen? Die bereits erfassten Videos/Ergebnisse bleiben erhalten.')) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await fetch('/api/indexing-checker/last-upload', { method: 'DELETE' });
+      setLastUpload(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -165,7 +189,7 @@ export default function IndexingCheckerPage() {
         </div>
       )}
 
-      <div className="mb-8 rounded border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm">
+      <div className="mb-8 space-y-2 rounded border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm">
         {lastUpload ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-slate-300">
@@ -173,16 +197,38 @@ export default function IndexingCheckerPage() {
               {formatViennaDateTime(lastUpload.uploadedAt)} Uhr · {lastUpload.ingested} ID(s) übernommen
               {lastUpload.failed > 0 ? `, ${lastUpload.failed} fehlgeschlagen` : ''}
             </p>
-            <a
-              href="/api/indexing-checker/last-upload"
-              className="text-sm text-slate-400 underline decoration-slate-600 hover:text-slate-200 hover:decoration-slate-300"
-            >
-              Datei herunterladen
-            </a>
+            <div className="flex gap-3">
+              <a
+                href="/api/indexing-checker/last-upload"
+                className="text-sm text-slate-400 underline decoration-slate-600 hover:text-slate-200 hover:decoration-slate-300"
+              >
+                Datei herunterladen
+              </a>
+              <button
+                type="button"
+                onClick={handleDeleteUpload}
+                disabled={deleting}
+                className="text-sm text-red-400 underline decoration-red-800 hover:text-red-300 hover:decoration-red-600 disabled:opacity-50"
+              >
+                Löschen
+              </button>
+            </div>
           </div>
         ) : (
           <p className="text-slate-400">Noch keine Datei hochgeladen.</p>
         )}
+
+        <p className="text-slate-500">
+          Letzter automatischer Check-Lauf:{' '}
+          {lastPollRun ? (
+            <>
+              {formatViennaDateTime(lastPollRun.at)} Uhr · {lastPollRun.checked} geprüft, {lastPollRun.foundNow} neu
+              gefunden
+            </>
+          ) : (
+            'noch nicht gelaufen'
+          )}
+        </p>
       </div>
 
       <div className="mb-4 flex items-center justify-between">

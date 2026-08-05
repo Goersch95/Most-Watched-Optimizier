@@ -94,5 +94,7 @@ export async function runPollingPass(): Promise<{ checked: number; foundNow: num
     }
   }
 
-  return { checked: due.length, foundNow, quotaUsed };
+  const result = { checked: due.length, foundNow, quotaUsed };
+  repo.setLastPollRun({ at: nowIso, ...result });
+  return result;
 }
