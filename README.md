@@ -53,8 +53,11 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   **Hartes Limit von 100 Anfragen/Tag** wird im Code selbst durchgesetzt
   (`lib/indexing-checker/pipeline.ts`, `DAILY_SERP_QUOTA`) - damit bleibt es immer im
   Google-Gratiskontingent, auch bei einem Bug oder vielen offenen IDs gleichzeitig.
-- **Persistenz**: SQLite-Datei (`better-sqlite3`), Pfad über `INDEXING_DB_PATH`
-  konfigurierbar. **Muss auf ein Coolify Persistent-Storage-Volume zeigen**, sonst gehen
+- **Persistenz**: einfache JSON-Datei (`lib/indexing-checker/db.ts`), Pfad über
+  `INDEXING_DB_PATH` konfigurierbar (Default: `data/indexing-checker.json`). Bewusst
+  keine SQLite/natives Node-Modul - hat in Docker (Alpine wie Debian) zu Laufzeit-
+  Abstürzen (502) geführt, obwohl der Build selbst durchlief. Bei dieser Datenmenge
+  reicht eine JSON-Datei völlig. **Muss auf ein Coolify Persistent-Storage-Volume zeigen**, sonst gehen
   alle Daten bei jedem Redeploy verloren.
 - **Scheduler**: kein In-App-Cron (würde bei jedem Redeploy/Neustart verloren gehen).
   Stattdessen ruft ein **Coolify Scheduled Task** (Dashboard → "Scheduled Tasks") alle

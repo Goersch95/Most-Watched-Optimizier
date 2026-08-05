@@ -1,56 +1,45 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type Database from 'better-sqlite3';
 import type { IndexingCheckRow, IndexingStatus } from './types';
 
-type DB = Database.Database;
-
-let dbInstance: DB | null = null;
-
 /**
- * Lazy statt Top-Level-Initialisierung: Next.js führt beim Build-Schritt
- * "Collecting page data" jedes Route-Modul in einem Worker-Thread aus, um es
- * zu analysieren - dabei stürzte der Build-Worker mit SIGSEGV ab, sobald
- * better-sqlite3 (natives Addon) allein durch den Modul-Import geladen und
- * eine DB geöffnet wurde. Zur eigentlichen Laufzeit (normaler Node-Prozess,
- * kein Worker-Thread) ist das unproblematisch - daher wird `require()` und
- * die DB-Öffnung bewusst erst beim ersten echten Aufruf ausgeführt, nicht
- * beim reinen Import.
+ * Bewusst eine simple JSON-Datei statt einer echten DB (z. B. SQLite): bei
+ * dieser Datenmenge (ein paar Dutzend Zeilen, ein Schreibvorgang alle
+ * 15-30 Min) mehr als ausreichend, und vermeidet natives Node-Addon-Gepäck
+ * komplett - better-sqlite3 hatte in Docker (Alpine/musl UND Debian/glibc)
+ * Laufzeitabstürze verursacht, die zu 502ern führten, obwohl der
+ * Next.js-Prozess selbst sauber lief.
  */
-function getDb(): DB {
-  if (dbInstance) return dbInstance;
+type Store = {
+  checks: Record<string, IndexingCheckRow>;
+  quota: Record<string, number>;
+};
 
-  const DatabaseCtor = require('better-sqlite3') as typeof Database;
-  const dbPath = process.env.INDEXING_DB_PATH || path.join(process.cwd(), 'data', 'indexing-checker.db');
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+const DB_PATH = process.env.INDEXING_DB_PATH || path.join(process.cwd(), 'data', 'indexing-checker.json');
 
-  const db = new DatabaseCtor(dbPath);
-  db.pragma('journal_mode = WAL');
+let store: Store | null = null;
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS indexing_checks (
-      id TEXT PRIMARY KEY,
-      url TEXT NOT NULL,
-      t1_publish TEXT NOT NULL,
-      t1_live_confirmed TEXT,
-      t2_indexed TEXT,
-      delta_minutes REAL,
-      weekday TEXT NOT NULL,
-      slot TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      poll_count INTEGER NOT NULL DEFAULT 0,
-      next_poll_at TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-    );
+function load(): Store {
+  if (store) return store;
 
-    CREATE TABLE IF NOT EXISTS serp_quota_usage (
-      date TEXT PRIMARY KEY,
-      count INTEGER NOT NULL DEFAULT 0
-    );
-  `);
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-  dbInstance = db;
-  return db;
+  if (fs.existsSync(DB_PATH)) {
+    try {
+      store = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+    } catch {
+      store = { checks: {}, quota: {} };
+    }
+  } else {
+    store = { checks: {}, quota: {} };
+  }
+
+  return store as Store;
+}
+
+function persist(): void {
+  if (!store) return;
+  fs.writeFileSync(DB_PATH, JSON.stringify(store, null, 2), 'utf-8');
 }
 
 export function upsertCheck(row: {
@@ -61,61 +50,73 @@ export function upsertCheck(row: {
   slot: string;
   nextPollAt: string;
 }): void {
-  getDb()
-    .prepare(
-      `INSERT INTO indexing_checks (id, url, t1_publish, weekday, slot, status, poll_count, next_poll_at)
-       VALUES (@id, @url, @t1Publish, @weekday, @slot, 'pending', 0, @nextPollAt)
-       ON CONFLICT(id) DO UPDATE SET
-         url = excluded.url,
-         t1_publish = excluded.t1_publish,
-         weekday = excluded.weekday,
-         slot = excluded.slot`
-    )
-    .run(row);
+  const s = load();
+  const existing = s.checks[row.id];
+
+  s.checks[row.id] = {
+    id: row.id,
+    url: row.url,
+    t1_publish: row.t1Publish,
+    t1_live_confirmed: existing?.t1_live_confirmed ?? null,
+    t2_indexed: existing?.t2_indexed ?? null,
+    delta_minutes: existing?.delta_minutes ?? null,
+    weekday: row.weekday,
+    slot: row.slot,
+    status: existing?.status ?? 'pending',
+    poll_count: existing?.poll_count ?? 0,
+    next_poll_at: existing ? existing.next_poll_at : row.nextPollAt,
+    created_at: existing?.created_at ?? new Date().toISOString(),
+  };
+
+  persist();
 }
 
 export function getDueChecks(nowIso: string): IndexingCheckRow[] {
-  return getDb()
-    .prepare(`SELECT * FROM indexing_checks WHERE status != 'found' AND next_poll_at <= ? ORDER BY next_poll_at ASC`)
-    .all(nowIso) as IndexingCheckRow[];
+  return Object.values(load().checks)
+    .filter((r) => r.status !== 'found' && r.next_poll_at <= nowIso)
+    .sort((a, b) => (a.next_poll_at < b.next_poll_at ? -1 : a.next_poll_at > b.next_poll_at ? 1 : 0));
 }
 
 export function getAllChecks(): IndexingCheckRow[] {
-  return getDb().prepare(`SELECT * FROM indexing_checks ORDER BY t1_publish DESC`).all() as IndexingCheckRow[];
+  return Object.values(load().checks).sort((a, b) =>
+    a.t1_publish < b.t1_publish ? 1 : a.t1_publish > b.t1_publish ? -1 : 0
+  );
 }
 
 export function markLive(id: string, confirmedAtIso: string, nextPollAtIso: string): void {
-  getDb()
-    .prepare(`UPDATE indexing_checks SET status = 'live', t1_live_confirmed = ?, next_poll_at = ? WHERE id = ?`)
-    .run(confirmedAtIso, nextPollAtIso, id);
+  const row = load().checks[id];
+  if (!row) return;
+  row.status = 'live';
+  row.t1_live_confirmed = confirmedAtIso;
+  row.next_poll_at = nextPollAtIso;
+  persist();
 }
 
 export function reschedule(id: string, nextPollAtIso: string, pollCount: number): void {
-  getDb()
-    .prepare(`UPDATE indexing_checks SET next_poll_at = ?, poll_count = ? WHERE id = ?`)
-    .run(nextPollAtIso, pollCount, id);
+  const row = load().checks[id];
+  if (!row) return;
+  row.next_poll_at = nextPollAtIso;
+  row.poll_count = pollCount;
+  persist();
 }
 
 export function markFound(id: string, foundAtIso: string, deltaMinutes: number): void {
-  getDb()
-    .prepare(`UPDATE indexing_checks SET status = 'found', t2_indexed = ?, delta_minutes = ? WHERE id = ?`)
-    .run(foundAtIso, deltaMinutes, id);
+  const row = load().checks[id];
+  if (!row) return;
+  row.status = 'found';
+  row.t2_indexed = foundAtIso;
+  row.delta_minutes = deltaMinutes;
+  persist();
 }
 
 export function getTodayQuotaUsed(dateStr: string): number {
-  const row = getDb().prepare(`SELECT count FROM serp_quota_usage WHERE date = ?`).get(dateStr) as
-    | { count: number }
-    | undefined;
-  return row?.count ?? 0;
+  return load().quota[dateStr] ?? 0;
 }
 
 export function incrementQuota(dateStr: string): void {
-  getDb()
-    .prepare(
-      `INSERT INTO serp_quota_usage (date, count) VALUES (?, 1)
-       ON CONFLICT(date) DO UPDATE SET count = count + 1`
-    )
-    .run(dateStr);
+  const s = load();
+  s.quota[dateStr] = (s.quota[dateStr] ?? 0) + 1;
+  persist();
 }
 
 export type { IndexingCheckRow, IndexingStatus };
