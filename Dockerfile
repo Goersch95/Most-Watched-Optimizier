@@ -18,4 +18,10 @@ COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
 ENV PORT=3000
+# Docker setzt HOSTNAME automatisch auf die Container-ID; Next.js' Standalone-
+# Server bindet sich daran, falls gesetzt, und lauscht dann NICHT auf
+# localhost/127.0.0.1 - das ließ sowohl Coolifys internen curl/wget-Healthcheck
+# als auch vermutlich einen Teil der 502er scheitern. Explizit auf alle
+# Interfaces binden.
+ENV HOSTNAME="0.0.0.0"
 CMD ["node", "server.js"]
