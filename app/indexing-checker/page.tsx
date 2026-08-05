@@ -34,8 +34,16 @@ const STATUS_STYLES: Record<IndexingStatus, string> = {
   found: 'border border-emerald-800 bg-emerald-950/50 text-emerald-300',
 };
 
+type LastUpload = {
+  filename: string;
+  uploadedAt: string;
+  ingested: number;
+  failed: number;
+};
+
 export default function IndexingCheckerPage() {
   const [rows, setRows] = useState<IndexingCheckRow[]>([]);
+  const [lastUpload, setLastUpload] = useState<LastUpload | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +63,7 @@ export default function IndexingCheckerPage() {
       const res = await fetch('/api/indexing-checker/results', { cache: 'no-store' });
       const data = await res.json();
       setRows(data.checks ?? []);
+      setLastUpload(data.lastUpload ?? null);
     } finally {
       setLoading(false);
     }
@@ -155,6 +164,26 @@ export default function IndexingCheckerPage() {
           {error}
         </div>
       )}
+
+      <div className="mb-8 rounded border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm">
+        {lastUpload ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-slate-300">
+              Letzter Upload: <span className="font-medium text-slate-100">{lastUpload.filename}</span> ·{' '}
+              {formatViennaDateTime(lastUpload.uploadedAt)} Uhr · {lastUpload.ingested} ID(s) übernommen
+              {lastUpload.failed > 0 ? `, ${lastUpload.failed} fehlgeschlagen` : ''}
+            </p>
+            <a
+              href="/api/indexing-checker/last-upload"
+              className="text-sm text-slate-400 underline decoration-slate-600 hover:text-slate-200 hover:decoration-slate-300"
+            >
+              Datei herunterladen
+            </a>
+          </div>
+        ) : (
+          <p className="text-slate-400">Noch keine Datei hochgeladen.</p>
+        )}
+      </div>
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Ergebnisse ({rows.length})</h2>

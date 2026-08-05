@@ -10,12 +10,21 @@ import type { IndexingCheckRow, IndexingStatus } from './types';
  * Laufzeitabstürze verursacht, die zu 502ern führten, obwohl der
  * Next.js-Prozess selbst sauber lief.
  */
+export type LastUpload = {
+  filename: string;
+  uploadedAt: string;
+  ingested: number;
+  failed: number;
+};
+
 type Store = {
   checks: Record<string, IndexingCheckRow>;
   quota: Record<string, number>;
+  lastUpload: LastUpload | null;
 };
 
 const DB_PATH = process.env.INDEXING_DB_PATH || path.join(process.cwd(), 'data', 'indexing-checker.json');
+const UPLOAD_FILE_PATH = path.join(path.dirname(DB_PATH), 'last-upload.xlsx');
 
 let store: Store | null = null;
 
@@ -26,12 +35,13 @@ function load(): Store {
 
   if (fs.existsSync(DB_PATH)) {
     try {
-      store = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+      const parsed = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+      store = { checks: {}, quota: {}, lastUpload: null, ...parsed };
     } catch {
-      store = { checks: {}, quota: {} };
+      store = { checks: {}, quota: {}, lastUpload: null };
     }
   } else {
-    store = { checks: {}, quota: {} };
+    store = { checks: {}, quota: {}, lastUpload: null };
   }
 
   return store as Store;
@@ -117,6 +127,30 @@ export function incrementQuota(dateStr: string): void {
   const s = load();
   s.quota[dateStr] = (s.quota[dateStr] ?? 0) + 1;
   persist();
+}
+
+/**
+ * Speichert die zuletzt hochgeladene Excel-Datei auf demselben Persistent-
+ * Storage-Volume wie die JSON-Daten (übernimmt also automatisch dessen
+ * Konfiguration). Es wird bewusst nur die jeweils letzte Datei aufgehoben,
+ * keine Historie - deckt den Bedarf "welches Dokument liegt gerade drin".
+ */
+export function saveUploadedFile(buffer: Buffer, meta: Omit<LastUpload, 'uploadedAt'>): void {
+  fs.mkdirSync(path.dirname(UPLOAD_FILE_PATH), { recursive: true });
+  fs.writeFileSync(UPLOAD_FILE_PATH, buffer);
+
+  const s = load();
+  s.lastUpload = { ...meta, uploadedAt: new Date().toISOString() };
+  persist();
+}
+
+export function getLastUpload(): LastUpload | null {
+  return load().lastUpload;
+}
+
+export function getUploadedFileBuffer(): Buffer | null {
+  if (!fs.existsSync(UPLOAD_FILE_PATH)) return null;
+  return fs.readFileSync(UPLOAD_FILE_PATH);
 }
 
 export type { IndexingCheckRow, IndexingStatus };
