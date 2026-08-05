@@ -12,7 +12,12 @@ export async function isUrlIndexedByGoogle(assetId: string, url: string): Promis
 
   if (!apiKey || !cx) return false;
 
-  const params = new URLSearchParams({ key: apiKey, cx, q: `"${url}"` });
+  // Bewusst ohne Anführungszeichen: eine exakte Phrasensuche nach der vollen
+  // URL matcht so gut wie nie, weil die URL selten wortwörtlich als Text auf
+  // der Seite steht. Eine unquotierte URL-Suche nutzt Googles URL-Erkennung
+  // (genau das, was eine manuelle Google-Suche auch tut) und findet indexierte
+  // Seiten zuverlässig.
+  const params = new URLSearchParams({ key: apiKey, cx, q: url });
 
   try {
     const res = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`, {
