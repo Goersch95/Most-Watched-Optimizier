@@ -3,10 +3,10 @@ import { geoMatches, parseGeoRestriction } from './geo-matcher';
 import type { CatchUpBucket, ComparisonRow, CsvRow, EpgEntry, LegalCheckResult, MismatchReason } from './types';
 
 /**
- * Eigene Annahme (nicht abgefragt): "unbegrenzt" gilt als stimmig, wenn
- * vod_rights.end fehlt oder mehr als 2 Jahre in der Zukunft liegt - es gibt
- * kein API-Feld für "wirklich nie endend", daher ein plausibler Schwellenwert
- * statt exaktem Vergleich.
+ * Bestätigt: vod_rights ohne "end" (nur "start", z. B. {"start":"2026-08-10T..."})
+ * bedeutet unbegrenzt verfügbar - kein Mismatch. Falls doch ein "end" gesetzt
+ * ist, aber weit in der Zukunft liegt, zählt das ebenfalls als "unbegrenzt"
+ * (eigene, nicht abgefragte Zusatz-Annahme für diesen Randfall).
  */
 const UNLIMITED_THRESHOLD_MS = 2 * 365 * 24 * 60 * 60 * 1000;
 
@@ -65,7 +65,6 @@ export function compareLegalData(
         title: row.title,
         label: null,
         titleShort: null,
-        producedBy: entry.producedBy,
         catchUpRaw: row.catchUpRaw,
         geoRaw: row.geoRaw,
         reason: [
@@ -78,7 +77,9 @@ export function compareLegalData(
       continue;
     }
 
-    const hasVodRights = Boolean(entry.vodRightsStart && entry.vodRightsEnd);
+    // Ein "start" ohne "end" ist ein aktives, unbegrenztes Recht - zählt als
+    // vorhandene vod_rights, nicht als "keine Rechte".
+    const hasVodRights = Boolean(entry.vodRightsStart);
     const apiDays =
       entry.vodRightsStart && entry.vodRightsEnd ? daysBetween(entry.vodRightsStart, entry.vodRightsEnd) : null;
 
@@ -87,12 +88,14 @@ export function compareLegalData(
     if (catchUpParsed.kind === 'no_vod') {
       if (hasVodRights) mismatchReasons.push('catchup');
     } else if (catchUpParsed.kind === 'unlimited') {
-      if (!hasVodRights || !entry.vodRightsEnd) {
+      if (!entry.vodRightsStart) {
+        // Gar keine vod_rights vorhanden -> kann nicht "unbegrenzt" sein.
         mismatchReasons.push('catchup');
-      } else {
+      } else if (entry.vodRightsEnd) {
         const endFarEnough = new Date(entry.vodRightsEnd).getTime() - Date.now() > UNLIMITED_THRESHOLD_MS;
         if (!endFarEnough) mismatchReasons.push('catchup');
       }
+      // Kein "end" bei vorhandenem "start" -> Match, nichts zu tun.
     } else if (catchUpParsed.kind === 'days') {
       if (apiDays === null || Math.abs(apiDays - catchUpParsed.days) > 1) {
         mismatchReasons.push('catchup');
@@ -114,7 +117,6 @@ export function compareLegalData(
       title: row.title,
       label: null,
       titleShort: null,
-      producedBy: entry.producedBy,
       catchUpRaw: row.catchUpRaw,
       geoRaw: row.geoRaw,
       apiCatchUpDays: apiDays,
