@@ -65,6 +65,7 @@ export function compareLegalData(
         title: row.title,
         label: null,
         titleShort: null,
+        producedBy: entry.producedBy,
         catchUpRaw: row.catchUpRaw,
         geoRaw: row.geoRaw,
         reason: [
@@ -113,6 +114,7 @@ export function compareLegalData(
       title: row.title,
       label: null,
       titleShort: null,
+      producedBy: entry.producedBy,
       catchUpRaw: row.catchUpRaw,
       geoRaw: row.geoRaw,
       apiCatchUpDays: apiDays,

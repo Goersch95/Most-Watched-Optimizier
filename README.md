@@ -135,6 +135,9 @@ synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich geg
   EPG-Eintrag (eigene ID-Welt, AA-Präfix, nicht der "Product code"/vin). Läuft gebatcht
   (10 gleichzeitig, wie `enrichRows()` in `lib/cms-client.ts`) nach dem eigentlichen
   Abgleich. Falls kein Label gefunden wird, fällt die UI auf den Excel-Titel zurück.
+- **Produced By**: kommt direkt aus dem EPG-Eintrag selbst (`produced_by`-Feld unter
+  `schedule`), kein zusätzlicher API-Call nötig - wird zusammen mit CatchUp/Geoblocking
+  aus dem EPG-Bulk-Abruf übernommen.
 
 ## Login
 

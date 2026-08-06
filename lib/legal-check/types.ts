@@ -11,6 +11,7 @@ export type EpgEntry = {
   vodRightsStart: string | null;
   vodRightsEnd: string | null;
   geoblocking: string[];
+  producedBy: string | null;
 };
 
 export type CatchUpBucket = '7' | '30' | 'unbegrenzt';
@@ -23,6 +24,7 @@ export type ComparisonRow = {
   title: string;
   label: string | null;
   titleShort: string | null;
+  producedBy: string | null;
   catchUpRaw: string;
   geoRaw: string;
   apiCatchUpDays: number | null;
@@ -36,6 +38,7 @@ export type UnparseableRow = {
   title: string;
   label: string | null;
   titleShort: string | null;
+  producedBy: string | null;
   catchUpRaw: string;
   geoRaw: string;
   reason: string;
