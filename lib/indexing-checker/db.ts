@@ -22,6 +22,8 @@ export type LastPollRun = {
   checked: number;
   foundNow: number;
   quotaUsed: number;
+  pendingRetried: number;
+  pendingIngested: number;
 };
 
 type Store = {
@@ -29,6 +31,14 @@ type Store = {
   quota: Record<string, number>;
   lastUpload: LastUpload | null;
   lastPollRun: LastPollRun | null;
+  /**
+   * IDs aus dem letzten Excel-Upload, die beim Ingest (noch) fehlgeschlagen
+   * sind (z. B. weil das CMS noch kein `play_start` hat). Werden bei jedem
+   * Poll-Lauf erneut versucht, bis sie erfolgreich aufgenommen werden - sonst
+   * würde eine ID, die zum Upload-Zeitpunkt noch nicht bereit war, nie wieder
+   * geprüft.
+   */
+  pendingIds: string[];
 };
 
 const DB_PATH = process.env.INDEXING_DB_PATH || path.join(process.cwd(), 'data', 'indexing-checker.json');
@@ -41,7 +51,7 @@ function load(): Store {
 
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-  const empty: Store = { checks: {}, quota: {}, lastUpload: null, lastPollRun: null };
+  const empty: Store = { checks: {}, quota: {}, lastUpload: null, lastPollRun: null, pendingIds: [] };
 
   if (fs.existsSync(DB_PATH)) {
     try {
@@ -182,6 +192,16 @@ export function setLastPollRun(run: LastPollRun): void {
 
 export function getLastPollRun(): LastPollRun | null {
   return load().lastPollRun;
+}
+
+export function setPendingIds(ids: string[]): void {
+  const s = load();
+  s.pendingIds = ids;
+  persist();
+}
+
+export function getPendingIds(): string[] {
+  return load().pendingIds;
 }
 
 export type { IndexingCheckRow, IndexingStatus };

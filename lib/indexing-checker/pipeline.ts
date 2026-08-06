@@ -33,6 +33,32 @@ export async function ingestId(assetId: string): Promise<{ ok: boolean; error?: 
   return { ok: true };
 }
 
+/**
+ * Versucht IDs erneut, die beim letzten Excel-Upload noch fehlgeschlagen
+ * sind (z. B. weil das CMS noch kein `play_start` hatte). Kostet keine
+ * Google-Quota, nur einen CMS-Fetch pro noch offener ID - kann also bei
+ * jedem Poll-Lauf gefahrlos mitlaufen.
+ */
+async function retryPendingIngestions(): Promise<{ retried: number; nowIngested: number }> {
+  const pending = repo.getPendingIds();
+  if (pending.length === 0) return { retried: 0, nowIngested: 0 };
+
+  let nowIngested = 0;
+  const stillPending: string[] = [];
+
+  for (const id of pending) {
+    const result = await ingestId(id);
+    if (result.ok) {
+      nowIngested += 1;
+    } else {
+      stillPending.push(id);
+    }
+  }
+
+  repo.setPendingIds(stillPending);
+  return { retried: pending.length, nowIngested };
+}
+
 function pollDelayMinutes(pollCount: number): number {
   if (pollCount < 4) return 30;
   if (pollCount < 10) return 60;
@@ -53,7 +79,15 @@ async function isUrlLive(url: string): Promise<boolean> {
   }
 }
 
-export async function runPollingPass(): Promise<{ checked: number; foundNow: number; quotaUsed: number }> {
+export async function runPollingPass(): Promise<{
+  checked: number;
+  foundNow: number;
+  quotaUsed: number;
+  pendingRetried: number;
+  pendingIngested: number;
+}> {
+  const { retried: pendingRetried, nowIngested: pendingIngested } = await retryPendingIngestions();
+
   const nowIso = new Date().toISOString();
   const today = nowIso.slice(0, 10);
   const due = repo.getDueChecks(nowIso);
@@ -94,7 +128,7 @@ export async function runPollingPass(): Promise<{ checked: number; foundNow: num
     }
   }
 
-  const result = { checked: due.length, foundNow, quotaUsed };
+  const result = { checked: due.length, foundNow, quotaUsed, pendingRetried, pendingIngested };
   repo.setLastPollRun({ at: nowIso, ...result });
   return result;
 }

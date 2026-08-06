@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveUploadedFile } from '@/lib/indexing-checker/db';
+import { saveUploadedFile, setPendingIds } from '@/lib/indexing-checker/db';
 import { ingestId } from '@/lib/indexing-checker/pipeline';
 import { parseIdsFromXlsx } from '@/lib/indexing-checker/xlsx-parser';
 
@@ -24,6 +24,10 @@ export async function POST(req: NextRequest) {
     const ingested = results.length - failed.length;
 
     saveUploadedFile(buffer, { filename: file.name, ingested, failed: failed.length });
+    // Fehlgeschlagene IDs merken - werden bei jedem Poll-Lauf automatisch
+    // erneut versucht (z. B. sobald das CMS ein play_start-Datum nachliefert),
+    // statt endgültig verworfen zu werden.
+    setPendingIds(failed.map((f) => f.id));
 
     return NextResponse.json({ ingested, failed });
   } catch (err) {

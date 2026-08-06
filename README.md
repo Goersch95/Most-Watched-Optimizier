@@ -44,6 +44,12 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   die auch der Most-Watched-Abgleich nutzt (`lib/cms-client.ts` → `fetchCmsProduct`,
   bestätigtes Feld - entspricht "Current Sunrise" im Dashboard-Export). Die URL wird
   direkt aus der ID gebaut: `https://www.servustv.com/de/page/<ID>`.
+- **IDs ohne Publish-Datum beim Upload**: falls das CMS für eine ID noch kein
+  `play_start` liefert (z. B. weil sie zum Upload-Zeitpunkt noch nicht vollständig
+  eingeplant war), wird sie nicht endgültig verworfen, sondern als "pending" gemerkt
+  und bei jedem automatischen Poll-Lauf erneut versucht, bis sie erfolgreich
+  aufgenommen wird (`lib/indexing-checker/pipeline.ts`, `retryPendingIngestions`).
+  Kostet keine Google-Quota, nur einen zusätzlichen CMS-Fetch pro offener ID.
 - **Live-Check**: eigener HTTP-Request auf die URL (kein Google-Call, kostet nichts),
   bestätigt dass die Seite wirklich online ist, bevor Google-Polling startet.
 - **T2 (Indexiert)**: Polling gegen Googles offizielle **Custom Search JSON API**

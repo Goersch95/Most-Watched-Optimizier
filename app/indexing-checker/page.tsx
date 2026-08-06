@@ -46,12 +46,15 @@ type LastPollRun = {
   checked: number;
   foundNow: number;
   quotaUsed: number;
+  pendingRetried: number;
+  pendingIngested: number;
 };
 
 export default function IndexingCheckerPage() {
   const [rows, setRows] = useState<IndexingCheckRow[]>([]);
   const [lastUpload, setLastUpload] = useState<LastUpload | null>(null);
   const [lastPollRun, setLastPollRun] = useState<LastPollRun | null>(null);
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -74,6 +77,7 @@ export default function IndexingCheckerPage() {
       setRows(data.checks ?? []);
       setLastUpload(data.lastUpload ?? null);
       setLastPollRun(data.lastPollRun ?? null);
+      setPendingIds(data.pendingIds ?? []);
     } finally {
       setLoading(false);
     }
@@ -118,7 +122,11 @@ export default function IndexingCheckerPage() {
       }
 
       const failedCount = data.failed?.length ?? 0;
-      setUploadSummary(`${data.ingested} ID(s) aufgenommen${failedCount ? `, ${failedCount} fehlgeschlagen` : ''}.`);
+      setUploadSummary(
+        `${data.ingested} ID(s) aufgenommen${
+          failedCount ? `, ${failedCount} noch nicht bereit - wird automatisch weiterverfolgt.` : '.'
+        }`
+      );
       await loadResults();
     } catch {
       setError('Upload fehlgeschlagen. Bitte erneut versuchen.');
@@ -195,7 +203,7 @@ export default function IndexingCheckerPage() {
             <p className="text-slate-300">
               Letzter Upload: <span className="font-medium text-slate-100">{lastUpload.filename}</span> ·{' '}
               {formatViennaDateTime(lastUpload.uploadedAt)} Uhr · {lastUpload.ingested} ID(s) übernommen
-              {lastUpload.failed > 0 ? `, ${lastUpload.failed} fehlgeschlagen` : ''}
+              {lastUpload.failed > 0 ? `, ${lastUpload.failed} noch nicht bereit` : ''}
             </p>
             <div className="flex gap-3">
               <a
@@ -224,11 +232,20 @@ export default function IndexingCheckerPage() {
             <>
               {formatViennaDateTime(lastPollRun.at)} Uhr · {lastPollRun.checked} geprüft, {lastPollRun.foundNow} neu
               gefunden
+              {lastPollRun.pendingRetried > 0
+                ? ` · ${lastPollRun.pendingRetried} noch nicht bereite ID(s) erneut versucht, davon ${lastPollRun.pendingIngested} neu aufgenommen`
+                : ''}
             </>
           ) : (
             'noch nicht gelaufen'
           )}
         </p>
+
+        {pendingIds.length > 0 && (
+          <p className="text-slate-500">
+            Wird noch automatisch nachverfolgt ({pendingIds.length}): {pendingIds.join(', ')}
+          </p>
+        )}
       </div>
 
       <div className="mb-4 flex items-center justify-between">
