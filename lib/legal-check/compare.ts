@@ -1,4 +1,5 @@
 import { parseCatchUp } from './catchup-matcher';
+import { classifyDaypart } from './daypart';
 import { geoMatches, parseGeoRestriction } from './geo-matcher';
 import type { CatchUpBucket, ComparisonRow, CsvRow, EpgEntry, LegalCheckResult, MismatchReason } from './types';
 
@@ -67,6 +68,7 @@ export function compareLegalData(
         titleShort: null,
         catchUpRaw: row.catchUpRaw,
         geoRaw: row.geoRaw,
+        daypart: classifyDaypart(entry.startTime),
         reason: [
           catchUpParsed.kind === 'unparseable' ? catchUpParsed.reason : null,
           geoParsed.kind === 'unparseable' ? geoParsed.reason : null,
@@ -121,6 +123,7 @@ export function compareLegalData(
       geoRaw: row.geoRaw,
       apiCatchUpDays: apiDays,
       apiGeoblocking: entry.geoblocking,
+      daypart: classifyDaypart(entry.startTime),
       mismatches: mismatchReasons,
     };
 

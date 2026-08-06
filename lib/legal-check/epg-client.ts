@@ -49,6 +49,7 @@ export async function fetchEpgEntries(): Promise<Map<string, EpgEntry>> {
       vodRightsStart: typeof vodRights?.start === 'string' ? vodRights.start : null,
       vodRightsEnd: typeof vodRights?.end === 'string' ? vodRights.end : null,
       geoblocking,
+      startTime: typeof obj.start_time === 'string' ? obj.start_time : null,
     });
   }
 

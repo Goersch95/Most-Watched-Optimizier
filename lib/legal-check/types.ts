@@ -11,11 +11,14 @@ export type EpgEntry = {
   vodRightsStart: string | null;
   vodRightsEnd: string | null;
   geoblocking: string[];
+  startTime: string | null;
 };
 
 export type CatchUpBucket = '7' | '30' | 'unbegrenzt';
 
 export type MismatchReason = 'catchup' | 'geo';
+
+export type Daypart = 'PRIME-TIME' | 'LATE-PRIME' | null;
 
 export type ComparisonRow = {
   productCode: string;
@@ -27,6 +30,7 @@ export type ComparisonRow = {
   geoRaw: string;
   apiCatchUpDays: number | null;
   apiGeoblocking: string[];
+  daypart: Daypart;
   mismatches: MismatchReason[];
 };
 
@@ -38,6 +42,7 @@ export type UnparseableRow = {
   titleShort: string | null;
   catchUpRaw: string;
   geoRaw: string;
+  daypart: Daypart;
   reason: string;
 };
 

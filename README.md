@@ -135,9 +135,12 @@ synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich geg
   EPG-Eintrag (eigene ID-Welt, AA-Präfix, nicht der "Product code"/vin). Läuft gebatcht
   (10 gleichzeitig, wie `enrichRows()` in `lib/cms-client.ts`) nach dem eigentlichen
   Abgleich. Falls kein Label gefunden wird, fällt die UI auf den Excel-Titel zurück.
-- **Produced By**: kommt direkt aus dem EPG-Eintrag selbst (`produced_by`-Feld unter
-  `schedule`), kein zusätzlicher API-Call nötig - wird zusammen mit CatchUp/Geoblocking
-  aus dem EPG-Bulk-Abruf übernommen.
+- **Daypart-Kennzeichnung** (`lib/legal-check/daypart.ts`): markiert Zeilen als
+  `PRIME-TIME`, wenn `start_time` aus der API (ein eigenes Feld, nicht `vod_rights.start`)
+  in Wiener Lokalzeit zwischen 20:00 und 22:00 liegt, bzw. als `LATE-PRIME` zwischen 22:00
+  und 24:00 - sonst kein Badge. Wie bei der Slot-Zuordnung im Indexierungs-Checker wird
+  dafür explizit über `Intl.DateTimeFormat`/`Europe/Vienna` konvertiert (Sommer-/Winterzeit-
+  sicher), nicht naiv am UTC-String geparst.
 
 ## Login
 

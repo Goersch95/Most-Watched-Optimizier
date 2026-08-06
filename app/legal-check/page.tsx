@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AppNav } from '@/components/AppNav';
 
 type MismatchReason = 'catchup' | 'geo';
+type Daypart = 'PRIME-TIME' | 'LATE-PRIME' | null;
 
 type ComparisonRow = {
   productCode: string;
@@ -16,6 +17,7 @@ type ComparisonRow = {
   geoRaw: string;
   apiCatchUpDays: number | null;
   apiGeoblocking: string[];
+  daypart: Daypart;
   mismatches: MismatchReason[];
 };
 
@@ -27,6 +29,7 @@ type UnparseableRow = {
   titleShort: string | null;
   catchUpRaw: string;
   geoRaw: string;
+  daypart: Daypart;
   reason: string;
 };
 
@@ -43,6 +46,18 @@ const MISMATCH_LABELS: Record<MismatchReason, string> = {
   catchup: 'CatchUp',
   geo: 'Geo-Sperre',
 };
+
+const DAYPART_STYLES: Record<'PRIME-TIME' | 'LATE-PRIME', string> = {
+  'PRIME-TIME': 'border-amber-800 bg-amber-950/50 text-amber-300',
+  'LATE-PRIME': 'border-indigo-800 bg-indigo-950/50 text-indigo-300',
+};
+
+function DaypartBadge({ daypart }: { daypart: Daypart }) {
+  if (!daypart) return <>{'–'}</>;
+  return (
+    <span className={`rounded border px-2 py-1 text-xs ${DAYPART_STYLES[daypart]}`}>{daypart}</span>
+  );
+}
 
 export default function LegalCheckPage() {
   const [result, setResult] = useState<LegalCheckResult | null>(null);
@@ -95,6 +110,7 @@ export default function LegalCheckPage() {
       'Product Code',
       'Label',
       'Titel (kurz)',
+      'Daypart',
       'CatchUp (Excel)',
       'CatchUp (API, Tage)',
       'GEO-REST (Excel)',
@@ -106,6 +122,7 @@ export default function LegalCheckPage() {
         r.productCode,
         r.label ?? r.title,
         r.titleShort ?? '',
+        r.daypart ?? '',
         r.catchUpRaw,
         r.apiCatchUpDays != null ? Math.round(r.apiCatchUpDays * 10) / 10 : '',
         r.geoRaw,
@@ -254,6 +271,7 @@ export default function LegalCheckPage() {
                       <th className="px-3 py-2 text-left font-medium">Product Code</th>
                       <th className="px-3 py-2 text-left font-medium">Label</th>
                       <th className="px-3 py-2 text-left font-medium">Titel (kurz)</th>
+                      <th className="px-3 py-2 text-left font-medium">Daypart</th>
                       <th className="px-3 py-2 text-left font-medium">CatchUp</th>
                       <th className="px-3 py-2 text-left font-medium">GEO-REST.</th>
                       <th className="px-3 py-2 text-left font-medium">Grund</th>
@@ -265,6 +283,9 @@ export default function LegalCheckPage() {
                         <td className="px-3 py-2">{r.productCode}</td>
                         <td className="px-3 py-2">{r.label ?? r.title}</td>
                         <td className="px-3 py-2">{r.titleShort ?? '–'}</td>
+                        <td className="px-3 py-2">
+                          <DaypartBadge daypart={r.daypart} />
+                        </td>
                         <td className="px-3 py-2">{r.catchUpRaw}</td>
                         <td className="px-3 py-2">{r.geoRaw}</td>
                         <td className="px-3 py-2 text-slate-400">{r.reason}</td>
@@ -322,6 +343,7 @@ function Section({
                 <th className="px-3 py-2 text-left font-medium">Product Code</th>
                 <th className="px-3 py-2 text-left font-medium">Label</th>
                 <th className="px-3 py-2 text-left font-medium">Titel (kurz)</th>
+                <th className="px-3 py-2 text-left font-medium">Daypart</th>
                 <th className="px-3 py-2 text-left font-medium">CatchUp (Excel)</th>
                 <th className="px-3 py-2 text-left font-medium">CatchUp (API)</th>
                 <th className="px-3 py-2 text-left font-medium">GEO-REST. (Excel)</th>
@@ -335,6 +357,9 @@ function Section({
                   <td className="px-3 py-2">{r.productCode}</td>
                   <td className="px-3 py-2">{r.label ?? r.title}</td>
                   <td className="px-3 py-2">{r.titleShort ?? '–'}</td>
+                  <td className="px-3 py-2">
+                    <DaypartBadge daypart={r.daypart} />
+                  </td>
                   <td className="px-3 py-2">{r.catchUpRaw}</td>
                   <td className="px-3 py-2">{r.apiCatchUpDays != null ? `${Math.round(r.apiCatchUpDays * 10) / 10} Tage` : '–'}</td>
                   <td className="px-3 py-2">{r.geoRaw || '–'}</td>
