@@ -4,9 +4,9 @@ import { buildServusTvUrl } from '@/lib/indexing-checker/servustv';
 export const dynamic = 'force-dynamic';
 
 /**
- * Diagnose-Endpoint, um die rohe Antwort der Google Custom Search API für
- * eine ID zu sehen (kein Boolean wie isUrlIndexedByGoogle). Geschützt durch
- * die normale Session-Cookie-Prüfung wie jede andere Nicht-Poll-Route.
+ * Diagnose-Endpoint, um die rohe Antwort der Serper.dev-API für eine ID zu
+ * sehen (kein Boolean wie isUrlIndexedByGoogle). Geschützt durch die normale
+ * Session-Cookie-Prüfung wie jede andere Nicht-Poll-Route.
  */
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
@@ -18,24 +18,26 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const apiKey = process.env.GOOGLE_CSE_API_KEY;
-  const cx = process.env.GOOGLE_CSE_CX;
+  const apiKey = process.env.SERPER_API_KEY;
 
-  if (!apiKey || !cx) {
-    return NextResponse.json({ error: 'GOOGLE_CSE_API_KEY oder GOOGLE_CSE_CX ist nicht gesetzt.' }, { status: 500 });
+  if (!apiKey) {
+    return NextResponse.json({ error: 'SERPER_API_KEY ist nicht gesetzt.' }, { status: 500 });
   }
 
   const url = buildServusTvUrl(id);
-  const params = new URLSearchParams({ key: apiKey, cx, q: url });
-  const apiUrl = `https://www.googleapis.com/customsearch/v1?${params.toString()}`;
 
   try {
-    const res = await fetch(apiUrl, { cache: 'no-store' });
+    const res = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: url }),
+      cache: 'no-store',
+    });
     const data = await res.json();
 
     return NextResponse.json({
       requestedUrl: url,
-      googleApiHttpStatus: res.status,
+      serperApiHttpStatus: res.status,
       response: data,
     });
   } catch (err) {

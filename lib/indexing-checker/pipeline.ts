@@ -1,14 +1,17 @@
 import * as repo from './db';
-import { isUrlIndexedByGoogle } from './google-search';
 import { classifySlot } from './schedule';
+import { isUrlIndexedByGoogle } from './serper-search';
 import { buildServusTvUrl, fetchPublishDate } from './servustv';
 
 /**
- * Hartes Tageslimit für die Google Custom Search JSON API - 100 Anfragen/Tag
- * sind immer kostenlos. Wird strikt durchgesetzt, damit nie versehentlich
- * kostenpflichtige Anfragen ausgelöst werden.
+ * Selbst gesetzte Sicherheitsobergrenze für Serper.dev-Anfragen pro Tag -
+ * anders als bei der früheren Google Custom Search JSON API gibt es hier
+ * kein "X Anfragen/Tag sind immer kostenlos"-Kontingent, jede Anfrage über
+ * das einmalige Gratisguthaben hinaus kostet (Bruchteile von Cent). Diese
+ * Grenze deckelt bei einem Bug o. Ä. das maximale Tagesrisiko auf wenige
+ * Cent, statt unbegrenzt Anfragen auszulösen.
  */
-const DAILY_SERP_QUOTA = 100;
+const DAILY_SERP_QUOTA = 50;
 
 /** Kein Google-Call, kostet nichts - eigener HTTP-Check, ob die URL schon live ist. */
 const LIVE_CHECK_RETRY_MINUTES = 5;

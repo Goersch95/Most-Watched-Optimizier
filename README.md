@@ -52,13 +52,21 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   Kostet keine Google-Quota, nur einen zusätzlichen CMS-Fetch pro offener ID.
 - **Live-Check**: eigener HTTP-Request auf die URL (kein Google-Call, kostet nichts),
   bestätigt dass die Seite wirklich online ist, bevor Google-Polling startet.
-- **T2 (Indexiert)**: Polling gegen Googles offizielle **Custom Search JSON API**
-  (Programmable Search Engine) - keine Search-Console-Abfrage (kein Zugriff auf die
+- **T2 (Indexiert)**: Polling gegen **Serper.dev** (Drittanbieter-SERP-API auf Basis
+  echter Google-Suchergebnisse) - keine Search-Console-Abfrage (kein Zugriff auf die
   ServusTV-On-Property) und kein Scraping (Blocking-Risiko würde die Messung entwerten).
   Intervall dünnt sich aus: erste 2h alle 30 Min, dann stündlich, dann alle 3h, danach täglich.
-  **Hartes Limit von 100 Anfragen/Tag** wird im Code selbst durchgesetzt
-  (`lib/indexing-checker/pipeline.ts`, `DAILY_SERP_QUOTA`) - damit bleibt es immer im
-  Google-Gratiskontingent, auch bei einem Bug oder vielen offenen IDs gleichzeitig.
+  **Selbst gesetztes Sicherheits-Tageslimit von 50 Anfragen/Tag** wird im Code
+  durchgesetzt (`lib/indexing-checker/pipeline.ts`, `DAILY_SERP_QUOTA`) - deckelt bei
+  einem Bug oder vielen offenen IDs gleichzeitig das maximale Tagesrisiko auf wenige Cent.
+  **Wechsel von der Google Custom Search JSON API** (ursprünglicher Ansatz):
+  die wurde für Neukunden geschlossen und durchgängig mit 403 PERMISSION_DENIED
+  gesperrt, obwohl Billing/API-Aktivierung/Key-Konfiguration nachweislich korrekt
+  waren (reine Google-Policy, laut Google-eigener Ankündigung wird die API zum
+  1.1.2027 komplett eingestellt). Googles offiziell empfohlener Ersatz "Vertex AI
+  Search" wurde geprüft und verworfen: durchsucht nicht den öffentlichen
+  Google-Webindex, sondern nur selbst angegebene Inhalte - hätte nie widergespiegelt,
+  ob eine Seite tatsächlich für normale Nutzer in der echten Google-Suche auftaucht.
 - **Persistenz**: einfache JSON-Datei (`lib/indexing-checker/db.ts`), Pfad über
   `INDEXING_DB_PATH` konfigurierbar (Default: `data/indexing-checker.json`). Bewusst
   keine SQLite/natives Node-Modul - hat in Docker (Alpine wie Debian) zu Laufzeit-
@@ -79,11 +87,10 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   Zugriff auf die App.
   Der Endpoint ist bewusst von der normalen Session-Cookie-Prüfung ausgenommen
   (`middleware.ts`) und stattdessen über `INDEXING_POLL_SECRET` geschützt.
-- **Setup Custom Search JSON API**: eigenes Google-Cloud-Projekt anlegen, API-Key
-  erzeugen, unter [programmablesearchengine.google.com](https://programmablesearchengine.google.com/)
-  eine Search Engine auf "gesamtes Web durchsuchen" stellen → liefert die `cx`-ID. Beides
-  in `GOOGLE_CSE_API_KEY` / `GOOGLE_CSE_CX` eintragen. Kein Vertrag mit einem
-  Drittanbieter (SerpApi/DataForSEO) nötig.
+- **Setup Serper.dev**: Account auf [serper.dev](https://serper.dev) anlegen, API-Key
+  aus dem Dashboard in `SERPER_API_KEY` eintragen. 2.500 Anfragen einmalig kostenlos
+  (keine Kreditkarte für die Registrierung nötig), danach Pay-as-you-go im
+  Bruchteile-von-Cent-Bereich pro Anfrage.
 - **Zeitzone**: CMS-Timestamps kommen als UTC (`...T04:55:00Z`), das Sende-Raster ist
   aber in Wiener Lokalzeit gedacht. Slot-/Wochentag-Zuordnung und die Zeit-Anzeige in der
   UI konvertieren deshalb explizit nach `Europe/Vienna` (inkl. Sommer-/Winterzeit) über
