@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { enrichWithCmsLabels } from '@/lib/legal-check/cms-enrich';
 import { compareLegalData } from '@/lib/legal-check/compare';
 import { parseLegalCsv } from '@/lib/legal-check/csv-parser';
 import { fetchEpgEntries } from '@/lib/legal-check/epg-client';
@@ -30,7 +31,8 @@ export async function POST(req: NextRequest) {
     };
 
     const epgByVin = await fetchEpgEntries();
-    const result = compareLegalData(rows, epgByVin, dateRange);
+    const compared = compareLegalData(rows, epgByVin, dateRange);
+    const result = await enrichWithCmsLabels(compared);
 
     return NextResponse.json(result);
   } catch (err) {

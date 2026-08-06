@@ -61,7 +61,10 @@ export function compareLegalData(
     if (catchUpParsed.kind === 'unparseable' || geoParsed.kind === 'unparseable') {
       unparseable.push({
         productCode: row.productCode,
+        assetId: entry.assetId,
         title: row.title,
+        label: null,
+        titleShort: null,
         catchUpRaw: row.catchUpRaw,
         geoRaw: row.geoRaw,
         reason: [
@@ -106,7 +109,10 @@ export function compareLegalData(
 
     const comparisonRow: ComparisonRow = {
       productCode: row.productCode,
+      assetId: entry.assetId,
       title: row.title,
+      label: null,
+      titleShort: null,
       catchUpRaw: row.catchUpRaw,
       geoRaw: row.geoRaw,
       apiCatchUpDays: apiDays,

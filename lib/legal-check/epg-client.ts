@@ -40,9 +40,12 @@ export async function fetchEpgEntries(): Promise<Map<string, EpgEntry>> {
     const geoblocking = Array.isArray(obj.geoblocking)
       ? obj.geoblocking.filter((g): g is string => typeof g === 'string')
       : [];
+    const assetId =
+      typeof obj.assetId === 'string' && obj.assetId.toLowerCase() !== 'placeholder' ? obj.assetId : null;
 
     map.set(vin.toUpperCase(), {
       vin,
+      assetId,
       vodRightsStart: typeof vodRights?.start === 'string' ? vodRights.start : null,
       vodRightsEnd: typeof vodRights?.end === 'string' ? vodRights.end : null,
       geoblocking,

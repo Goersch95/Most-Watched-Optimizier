@@ -8,7 +8,10 @@ type MismatchReason = 'catchup' | 'geo';
 
 type ComparisonRow = {
   productCode: string;
+  assetId: string | null;
   title: string;
+  label: string | null;
+  titleShort: string | null;
   catchUpRaw: string;
   geoRaw: string;
   apiCatchUpDays: number | null;
@@ -18,7 +21,10 @@ type ComparisonRow = {
 
 type UnparseableRow = {
   productCode: string;
+  assetId: string | null;
   title: string;
+  label: string | null;
+  titleShort: string | null;
   catchUpRaw: string;
   geoRaw: string;
   reason: string;
@@ -85,11 +91,21 @@ export default function LegalCheckPage() {
   }
 
   function exportRows(rows: ComparisonRow[], filename: string) {
-    const header = ['Product Code', 'Titel', 'CatchUp (Excel)', 'CatchUp (API, Tage)', 'GEO-REST (Excel)', 'Geoblocking (API)', 'Abweichung'];
+    const header = [
+      'Product Code',
+      'Label',
+      'Titel (kurz)',
+      'CatchUp (Excel)',
+      'CatchUp (API, Tage)',
+      'GEO-REST (Excel)',
+      'Geoblocking (API)',
+      'Abweichung',
+    ];
     const lines = rows.map((r) =>
       [
         r.productCode,
-        r.title,
+        r.label ?? r.title,
+        r.titleShort ?? '',
         r.catchUpRaw,
         r.apiCatchUpDays != null ? Math.round(r.apiCatchUpDays * 10) / 10 : '',
         r.geoRaw,
@@ -175,7 +191,11 @@ export default function LegalCheckPage() {
         <p className="mt-3 text-xs text-slate-500">
           CSV-Export mit Spalten "Product code", "CatchUp", "GEO-REST." (z. B. "VOD_LEGAL_Infos GESAMTÜBERSICHT").
         </p>
-        {loading && <p className="mt-3 text-sm text-slate-400">Wird verarbeitet, bei ~19.000 Zeilen kann das etwas dauern…</p>}
+        {loading && (
+          <p className="mt-3 text-sm text-slate-400">
+            Wird verarbeitet (inkl. CMS-Abgleich für Titel), kann bei vielen Treffern etwas dauern…
+          </p>
+        )}
       </div>
 
       {error && (
@@ -232,7 +252,8 @@ export default function LegalCheckPage() {
                   <thead className="bg-slate-900 text-slate-400">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Product Code</th>
-                      <th className="px-3 py-2 text-left font-medium">Titel</th>
+                      <th className="px-3 py-2 text-left font-medium">Label</th>
+                      <th className="px-3 py-2 text-left font-medium">Titel (kurz)</th>
                       <th className="px-3 py-2 text-left font-medium">CatchUp</th>
                       <th className="px-3 py-2 text-left font-medium">GEO-REST.</th>
                       <th className="px-3 py-2 text-left font-medium">Grund</th>
@@ -242,7 +263,8 @@ export default function LegalCheckPage() {
                     {result.unparseable.map((r) => (
                       <tr key={r.productCode} className="border-t border-slate-800">
                         <td className="px-3 py-2">{r.productCode}</td>
-                        <td className="px-3 py-2">{r.title}</td>
+                        <td className="px-3 py-2">{r.label ?? r.title}</td>
+                        <td className="px-3 py-2">{r.titleShort ?? '–'}</td>
                         <td className="px-3 py-2">{r.catchUpRaw}</td>
                         <td className="px-3 py-2">{r.geoRaw}</td>
                         <td className="px-3 py-2 text-slate-400">{r.reason}</td>
@@ -298,7 +320,8 @@ function Section({
             <thead className="bg-slate-900 text-slate-400">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Product Code</th>
-                <th className="px-3 py-2 text-left font-medium">Titel</th>
+                <th className="px-3 py-2 text-left font-medium">Label</th>
+                <th className="px-3 py-2 text-left font-medium">Titel (kurz)</th>
                 <th className="px-3 py-2 text-left font-medium">CatchUp (Excel)</th>
                 <th className="px-3 py-2 text-left font-medium">CatchUp (API)</th>
                 <th className="px-3 py-2 text-left font-medium">GEO-REST. (Excel)</th>
@@ -310,7 +333,8 @@ function Section({
               {rows.map((r) => (
                 <tr key={r.productCode} className="border-t border-slate-800 hover:bg-slate-900/50">
                   <td className="px-3 py-2">{r.productCode}</td>
-                  <td className="px-3 py-2">{r.title}</td>
+                  <td className="px-3 py-2">{r.label ?? r.title}</td>
+                  <td className="px-3 py-2">{r.titleShort ?? '–'}</td>
                   <td className="px-3 py-2">{r.catchUpRaw}</td>
                   <td className="px-3 py-2">{r.apiCatchUpDays != null ? `${Math.round(r.apiCatchUpDays * 10) / 10} Tage` : '–'}</td>
                   <td className="px-3 py-2">{r.geoRaw || '–'}</td>

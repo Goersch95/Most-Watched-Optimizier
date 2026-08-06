@@ -129,6 +129,12 @@ synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich geg
   Produkte und werden rausgefiltert. `vod_rights.end` fehlt bei manchen Einträgen (nur
   `start` vorhanden) - wird als `null` behandelt, führt zu einer CatchUp-Abweichung, falls
   die Excel eine konkrete Tagesanzahl erwartet.
+- **Titel-Anreicherung** (`lib/legal-check/cms-enrich.ts`): In den Ergebnistabellen wird
+  statt des Excel-Titels `label` und `title_short` aus derselben CMS-Scheduling-API
+  angezeigt, die auch der Most-Watched-Abgleich nutzt - über die `assetId` aus dem
+  EPG-Eintrag (eigene ID-Welt, AA-Präfix, nicht der "Product code"/vin). Läuft gebatcht
+  (10 gleichzeitig, wie `enrichRows()` in `lib/cms-client.ts`) nach dem eigentlichen
+  Abgleich. Falls kein Label gefunden wird, fällt die UI auf den Excel-Titel zurück.
 
 ## Login
 
