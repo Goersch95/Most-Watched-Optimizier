@@ -14,16 +14,44 @@ function daysBetween(startIso: string, endIso: string): number {
   return (new Date(endIso).getTime() - new Date(startIso).getTime()) / (1000 * 60 * 60 * 24);
 }
 
-export function compareLegalData(rows: CsvRow[], epgByVin: Map<string, EpgEntry>): LegalCheckResult {
+export type DateRange = {
+  /** Inklusive, ISO-Datum "YYYY-MM-DD". */
+  from?: string;
+  /** Inklusive, ISO-Datum "YYYY-MM-DD" (deckt den ganzen Tag ab). */
+  to?: string;
+};
+
+/** vod_rights.start muss innerhalb des Zeitraums liegen (auf Kalendertag-Ebene, UTC). */
+function isWithinRange(startIso: string | null, range: DateRange | undefined): boolean {
+  if (!range || (!range.from && !range.to)) return true;
+  if (!startIso) return false;
+
+  const start = new Date(startIso).getTime();
+  if (range.from && start < new Date(`${range.from}T00:00:00.000Z`).getTime()) return false;
+  if (range.to && start > new Date(`${range.to}T23:59:59.999Z`).getTime()) return false;
+  return true;
+}
+
+export function compareLegalData(
+  rows: CsvRow[],
+  epgByVin: Map<string, EpgEntry>,
+  dateRange?: DateRange
+): LegalCheckResult {
   const mismatches: ComparisonRow[] = [];
   const catchUpBuckets: Record<CatchUpBucket, ComparisonRow[]> = { '7': [], '30': [], unbegrenzt: [] };
   const unparseable: LegalCheckResult['unparseable'] = [];
   let notInApi = 0;
+  let outsideDateRange = 0;
 
   for (const row of rows) {
     const entry = epgByVin.get(row.productCode.toUpperCase());
     if (!entry) {
       notInApi += 1;
+      continue;
+    }
+
+    if (!isWithinRange(entry.vodRightsStart, dateRange)) {
+      outsideDateRange += 1;
       continue;
     }
 
@@ -99,5 +127,5 @@ export function compareLegalData(rows: CsvRow[], epgByVin: Map<string, EpgEntry>
     }
   }
 
-  return { mismatches, catchUpBuckets, unparseable, notInApi, totalRows: rows.length };
+  return { mismatches, catchUpBuckets, unparseable, notInApi, outsideDateRange, totalRows: rows.length };
 }

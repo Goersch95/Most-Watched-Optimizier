@@ -31,5 +31,6 @@ export type LegalCheckResult = {
   catchUpBuckets: Record<CatchUpBucket, ComparisonRow[]>;
   unparseable: { productCode: string; title: string; catchUpRaw: string; geoRaw: string; reason: string }[];
   notInApi: number;
+  outsideDateRange: number;
   totalRows: number;
 };

@@ -29,6 +29,7 @@ type LegalCheckResult = {
   catchUpBuckets: Record<'7' | '30' | 'unbegrenzt', ComparisonRow[]>;
   unparseable: UnparseableRow[];
   notInApi: number;
+  outsideDateRange: number;
   totalRows: number;
 };
 
@@ -41,6 +42,8 @@ export default function LegalCheckPage() {
   const [result, setResult] = useState<LegalCheckResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -61,6 +64,8 @@ export default function LegalCheckPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (dateFrom) formData.append('dateFrom', dateFrom);
+      if (dateTo) formData.append('dateTo', dateTo);
 
       const res = await fetch('/api/legal-check/upload', { method: 'POST', body: formData });
       const data = await res.json();
@@ -122,6 +127,43 @@ export default function LegalCheckPage() {
         EPG-API ab. Vergleich läuft direkt beim Upload, es wird nichts gespeichert.
       </p>
 
+      <div className="mb-4 flex flex-wrap items-end gap-4 rounded border border-slate-800 bg-slate-900/50 p-4">
+        <label className="flex flex-col gap-1 text-sm text-slate-300">
+          Zeitraum von
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-slate-300">
+          bis
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200"
+          />
+        </label>
+        {(dateFrom || dateTo) && (
+          <button
+            type="button"
+            onClick={() => {
+              setDateFrom('');
+              setDateTo('');
+            }}
+            className="text-sm text-slate-400 underline decoration-slate-600 hover:text-slate-200 hover:decoration-slate-300"
+          >
+            Zurücksetzen
+          </button>
+        )}
+        <p className="text-xs text-slate-500">
+          Filtert nach dem tatsächlichen Start der VOD-Rechte laut API (vod_rights.start). Leer lassen für alle
+          Zeiträume.
+        </p>
+      </div>
+
       <div className="mb-8 rounded border border-dashed border-slate-700 p-6 text-center">
         <input
           ref={fileInputRef}
@@ -145,7 +187,8 @@ export default function LegalCheckPage() {
       {result && (
         <>
           <div className="mb-8 rounded border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm text-slate-400">
-            {result.totalRows} Zeilen in der Datei · {result.notInApi} nicht in der API gefunden (übersprungen) ·{' '}
+            {result.totalRows} Zeilen in der Datei · {result.notInApi} nicht in der API gefunden (übersprungen)
+            {result.outsideDateRange > 0 ? ` · ${result.outsideDateRange} außerhalb des Zeitraums` : ''} ·{' '}
             {result.unparseable.length} nicht auswertbar · {result.mismatches.length} Abweichung(en)
           </div>
 

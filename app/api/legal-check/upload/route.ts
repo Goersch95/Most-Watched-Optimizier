@@ -22,8 +22,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const dateFrom = formData.get('dateFrom');
+    const dateTo = formData.get('dateTo');
+    const dateRange = {
+      from: typeof dateFrom === 'string' && dateFrom ? dateFrom : undefined,
+      to: typeof dateTo === 'string' && dateTo ? dateTo : undefined,
+    };
+
     const epgByVin = await fetchEpgEntries();
-    const result = compareLegalData(rows, epgByVin);
+    const result = compareLegalData(rows, epgByVin, dateRange);
 
     return NextResponse.json(result);
   } catch (err) {
