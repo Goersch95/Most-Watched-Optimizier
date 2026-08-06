@@ -89,6 +89,36 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   UI konvertieren deshalb explizit nach `Europe/Vienna` (inkl. Sommer-/Winterzeit) über
   `Intl.DateTimeFormat` (`lib/indexing-checker/schedule.ts`).
 
+## Legal Heavy Check
+
+Dritte Rubrik (`/legal-check`), gleicht den Legal-Export (CSV, Spalten "Product code",
+"CatchUp", "GEO-REST.") gegen die öffentliche EPG-API
+(`https://pms-epg-service.liiift.io/api/epg/v1/epgs/stvat/public`) ab. Läuft komplett
+synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich gegen bis zu
+~19.000 Zeilen), keine Persistenz, kein Scheduler nötig.
+
+- **CSV-Parsing** (`lib/legal-check/csv-parser.ts`): Windows-1252-kodiert, semikolon-
+  getrennt, Spalten werden über die Kopfzeile gesucht (nicht über feste Positionen).
+- **Geo-Abgleich** (`lib/legal-check/geo-matcher.ts`): "GEO-REST." in der Excel ist eine
+  Freigabeliste (verfügbare Länder), das API-Feld `geoblocking` eine Sperrliste. Für alle
+  Werte außer `GST` gilt: Sperrliste = {Deutschland, Österreich, Schweiz, Liechtenstein,
+  Luxemburg} minus die verfügbaren Länder (Alto Adige/AA zählt wie Österreich). `GST` ist
+  eine bestätigte Ausnahme mit fester Sperrliste `["Spain"]` - folgt nicht der
+  Universe-Formel, wurde explizit mit dem Rechteteam abgeklärt.
+- **CatchUp-Abgleich** (`lib/legal-check/catchup-matcher.ts`, `compare.ts`): Zahlen (auch
+  "N Tage"/"N Jahre") = erwartete Tage zwischen `vod_rights.start`/`.end` (± 1 Tag
+  Toleranz). Datumswerte (auch mit "bis "-Präfix) = erwartetes `vod_rights.end`. "kein
+  VoD" (+ Schreibvarianten) = API sollte keine aktiven vod_rights haben. **Annahme, nicht
+  abgefragt**: "unbegrenzt" gilt als stimmig, wenn `vod_rights.end` fehlt oder mehr als
+  2 Jahre in der Zukunft liegt (`UNLIMITED_THRESHOLD_MS` in `compare.ts`) - es gibt kein
+  API-Feld für "wirklich nie endend".
+- **Nicht auswertbare Werte** (x, \*, "no rights", Spalten-Verrutscher, "?"-markierte
+  Unsicherheiten in der Excel) werden nicht geraten, sondern in einer eigenen Liste
+  gesammelt und im UI separat ausgewiesen.
+- Produkte aus der Excel, die in der Live-API nicht (mehr) auftauchen, werden übersprungen
+  (nur als Zähler "notInApi" sichtbar, keine eigene Liste) - die Excel reicht bis 2017
+  zurück, viele Einträge sind nicht mehr aktuell.
+
 ## Login
 
 Eigene Login-Seite (`/login`) statt Browser-Basic-Auth-Popup, geschützt durch ein

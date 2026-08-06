@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const TABS = [
   { href: '/', label: 'Most Watched Optimizer' },
   { href: '/indexing-checker', label: 'Google-Indexierungs-Checker' },
+  { href: '/legal-check', label: 'Legal Heavy Check' },
 ];
 
 export function AppNav() {
