@@ -120,7 +120,15 @@ synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich geg
   gesammelt und im UI separat ausgewiesen.
 - Produkte aus der Excel, die in der Live-API nicht (mehr) auftauchen, werden übersprungen
   (nur als Zähler "notInApi" sichtbar, keine eigene Liste) - die Excel reicht bis 2017
-  zurück, viele Einträge sind nicht mehr aktuell.
+  zurück, viele Einträge sind nicht mehr aktuell. **Ein hoher notInApi-Wert ist normal**:
+  die API liefert unter `schedule` offenbar nur ein rollierendes Zeitfenster (geschätzt
+  ~3.000 Einträge laut Stichprobe), nicht den kompletten historischen Katalog seit 2017.
+- **API-Response-Form** (verifiziert, nicht mehr geraten): `{ channel: {...}, schedule: [...] }`
+  - die Produktliste liegt unter `schedule`, nicht unter `data`/`items`/`epgs`
+  (`lib/legal-check/epg-client.ts`). Einträge mit `vin: "placeholder"` sind keine echten
+  Produkte und werden rausgefiltert. `vod_rights.end` fehlt bei manchen Einträgen (nur
+  `start` vorhanden) - wird als `null` behandelt, führt zu einer CatchUp-Abweichung, falls
+  die Excel eine konkrete Tagesanzahl erwartet.
 
 ## Login
 

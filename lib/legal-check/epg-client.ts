@@ -3,10 +3,12 @@ import type { EpgEntry } from './types';
 const EPG_URL = 'https://pms-epg-service.liiift.io/api/epg/v1/epgs/stvat/public';
 
 /**
- * Einzelner Bulk-Abruf statt einer Anfrage pro Produkt - die öffentliche EPG-
- * API liefert offenbar den gesamten Katalog in einer Antwort. Response-Form
- * ist nicht dokumentiert bekannt, daher defensiv gegen ein paar gängige
- * Wrapper-Varianten (flaches Array vs. { data: [...] } o. ä.).
+ * Einzelner Bulk-Abruf statt einer Anfrage pro Produkt. Response-Form
+ * verifiziert (nicht mehr geraten): { channel: {...}, schedule: [...] } -
+ * die eigentlichen Produkte liegen unter "schedule". Deckt vermutlich nur
+ * ein rollierendes Zeitfenster ab (Sende-/VOD-Planung), nicht den ganzen
+ * historischen Katalog seit 2017 - ein hoher "notInApi"-Wert im Ergebnis ist
+ * dadurch normal, nicht zwingend ein Fehler.
  */
 export async function fetchEpgEntries(): Promise<Map<string, EpgEntry>> {
   const res = await fetch(EPG_URL, { cache: 'no-store' });
@@ -17,15 +19,11 @@ export async function fetchEpgEntries(): Promise<Map<string, EpgEntry>> {
 
   const data = await res.json();
 
-  const list: unknown[] = Array.isArray(data)
-    ? data
-    : Array.isArray((data as Record<string, unknown>)?.data)
-      ? ((data as Record<string, unknown>).data as unknown[])
-      : Array.isArray((data as Record<string, unknown>)?.items)
-        ? ((data as Record<string, unknown>).items as unknown[])
-        : Array.isArray((data as Record<string, unknown>)?.epgs)
-          ? ((data as Record<string, unknown>).epgs as unknown[])
-          : [];
+  const list: unknown[] = Array.isArray((data as Record<string, unknown>)?.schedule)
+    ? ((data as Record<string, unknown>).schedule as unknown[])
+    : Array.isArray(data)
+      ? data
+      : [];
 
   const map = new Map<string, EpgEntry>();
 
@@ -34,7 +32,9 @@ export async function fetchEpgEntries(): Promise<Map<string, EpgEntry>> {
     const obj = item as Record<string, unknown>;
 
     const vin = typeof obj.vin === 'string' ? obj.vin : null;
-    if (!vin) continue;
+    // Platzhalter-Einträge (id/assetId/vin literal "placeholder") sind keine
+    // echten Produkte und würden das Matching verfälschen.
+    if (!vin || vin.toLowerCase() === 'placeholder') continue;
 
     const vodRights = obj.vod_rights as Record<string, unknown> | undefined;
     const geoblocking = Array.isArray(obj.geoblocking)
