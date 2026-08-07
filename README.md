@@ -112,9 +112,14 @@ Dritte Rubrik (`/legal-check`), gleicht den Legal-Export (CSV, Spalten "Product 
 synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich gegen bis zu
 ~19.000 Zeilen), keine Persistenz, kein Scheduler nötig.
 
-- **Zeitraum-Filter**: zwei Date-Picker oben auf der Seite, filtern nach `vod_rights.start`
-  aus der API (nicht nach einem Datum aus der Excel) - nur Produkte, deren tatsächlicher
-  Rechte-Start im gewählten Zeitraum liegt, werden geprüft. Leer lassen für alle Zeiträume.
+- **Zeitraum-Filter**: zwei Kalender-Date-Picker (`components/DatePicker.tsx`, eigene
+  Kalender-Ansicht statt des nativen `<input type="date">`) oben auf der Seite, filtern
+  nach `vod_rights.start` aus der API (nicht nach einem Datum aus der Excel) - nur
+  Produkte, deren tatsächlicher Rechte-Start im gewählten Zeitraum liegt, werden geprüft.
+  Leer lassen für alle Zeiträume. **"Neu abgleichen"**: die zuletzt hochgeladene Datei
+  wird im Browser-State gehalten (`uploadedFile`) - nach einer Zeitraum-Änderung lässt
+  sich derselbe Abgleich erneut anstoßen, ohne die Datei nochmal auszuwählen. Der Button
+  erscheint erst nach dem ersten erfolgreichen Upload.
 - **CSV-Parsing** (`lib/legal-check/csv-parser.ts`): Windows-1252-kodiert, semikolon-
   getrennt, Spalten werden über die Kopfzeile gesucht (nicht über feste Positionen).
 - **Geo-Abgleich** (`lib/legal-check/geo-matcher.ts`): "GEO-REST." in der Excel ist eine

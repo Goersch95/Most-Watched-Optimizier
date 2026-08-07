@@ -94,6 +94,7 @@ export default function LegalCheckPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -147,10 +148,7 @@ export default function LegalCheckPage() {
     router.refresh();
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  async function runCheck(file: File) {
     setLoading(true);
     setError(null);
     setResult(null);
@@ -175,8 +173,22 @@ export default function LegalCheckPage() {
       setError('Verarbeitung fehlgeschlagen. Bitte erneut versuchen.');
     } finally {
       setLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedFile(file);
+    await runCheck(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  /** Wendet einen geänderten Zeitraum auf die bereits hochgeladene Datei an, ohne erneuten Datei-Upload. */
+  async function handleRefresh() {
+    if (!uploadedFile) return;
+    await runCheck(uploadedFile);
   }
 
   async function exportRows(rows: ComparisonRow[], filename: string) {
@@ -218,9 +230,19 @@ export default function LegalCheckPage() {
             Zurücksetzen
           </button>
         )}
+        {uploadedFile && (
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="rounded bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Neu abgleichen
+          </button>
+        )}
         <p className="text-xs text-slate-500">
           Filtert nach dem tatsächlichen Start der VOD-Rechte laut API (vod_rights.start). Leer lassen für alle
-          Zeiträume.
+          Zeiträume. Zeitraum geändert? "Neu abgleichen" prüft dieselbe Datei erneut, ohne sie neu hochzuladen.
         </p>
       </div>
 
