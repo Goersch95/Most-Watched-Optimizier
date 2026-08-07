@@ -50,11 +50,19 @@ type LastPollRun = {
   pendingIngested: number;
 };
 
+type ArchiveSummary = {
+  id: string;
+  archivedAt: string;
+  filename: string | null;
+  count: number;
+};
+
 export default function IndexingCheckerPage() {
   const [rows, setRows] = useState<IndexingCheckRow[]>([]);
   const [lastUpload, setLastUpload] = useState<LastUpload | null>(null);
   const [lastPollRun, setLastPollRun] = useState<LastPollRun | null>(null);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [archives, setArchives] = useState<ArchiveSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -78,6 +86,7 @@ export default function IndexingCheckerPage() {
       setLastUpload(data.lastUpload ?? null);
       setLastPollRun(data.lastPollRun ?? null);
       setPendingIds(data.pendingIds ?? []);
+      setArchives(data.archives ?? []);
     } finally {
       setLoading(false);
     }
@@ -187,6 +196,10 @@ export default function IndexingCheckerPage() {
           Excel (.xlsx) mit einer Spalte "ID" (z. B. der Dashboard-Export "AssetListExport") oder einfach eine ID
           pro Zeile in Spalte A.
         </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Ein neuer Upload archiviert automatisch die aktuellen Ergebnisse (weiterhin einsehbar unter "Archiv"
+          unten) und startet eine neue Tracking-Runde nur mit den IDs aus der neuen Datei.
+        </p>
         {uploading && <p className="mt-3 text-sm text-slate-400">Wird verarbeitet…</p>}
         {uploadSummary && <p className="mt-3 text-sm text-emerald-400">{uploadSummary}</p>}
       </div>
@@ -274,58 +287,117 @@ export default function IndexingCheckerPage() {
       ) : rows.length === 0 ? (
         <p className="text-slate-400 text-sm">Noch keine Videos erfasst.</p>
       ) : (
-        <div className="mb-8 overflow-x-auto rounded border border-slate-800">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-900 text-slate-400">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">ID</th>
-                <th className="px-3 py-2 text-left font-medium">Wochentag</th>
-                <th className="px-3 py-2 text-left font-medium">Slot</th>
-                <th className="px-3 py-2 text-left font-medium">T1 (Publish)</th>
-                <th className="px-3 py-2 text-left font-medium">T2 (Indexiert)</th>
-                <th className="px-3 py-2 text-right font-medium">Delta</th>
-                <th className="px-3 py-2 text-left font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-t border-slate-800 hover:bg-slate-900/50">
-                  <td className="px-3 py-2">
-                    <a
-                      href={row.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline decoration-slate-600 hover:decoration-slate-300"
-                    >
-                      {row.id}
-                    </a>
-                  </td>
-                  <td className="px-3 py-2">{row.weekday}</td>
-                  <td className="px-3 py-2">{row.slot}</td>
-                  <td className="px-3 py-2">{formatViennaDateTime(row.t1_publish)}</td>
-                  <td className="px-3 py-2">{row.t2_indexed ? formatViennaDateTime(row.t2_indexed) : '–'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {row.delta_minutes != null ? formatDelta(row.delta_minutes) : '–'}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className={`rounded px-2 py-1 text-xs ${STATUS_STYLES[row.status]}`}>
-                      {STATUS_LABELS[row.status]}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ResultsTable rows={rows} />
       )}
 
       {foundRows.length > 0 && (
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="mb-8 grid gap-8 lg:grid-cols-2">
           <AverageTable title="Ø Latenz pro Slot" data={averagesBySlot} />
           <AverageTable title="Ø Latenz pro Wochentag" data={averagesByWeekday} />
         </div>
       )}
+
+      <ArchiveSection archives={archives} />
     </main>
+  );
+}
+
+function ResultsTable({ rows }: { rows: IndexingCheckRow[] }) {
+  return (
+    <div className="mb-8 overflow-x-auto rounded border border-slate-800">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-900 text-slate-400">
+          <tr>
+            <th className="px-3 py-2 text-left font-medium">ID</th>
+            <th className="px-3 py-2 text-left font-medium">Wochentag</th>
+            <th className="px-3 py-2 text-left font-medium">Slot</th>
+            <th className="px-3 py-2 text-left font-medium">T1 (Publish)</th>
+            <th className="px-3 py-2 text-left font-medium">T2 (Indexiert)</th>
+            <th className="px-3 py-2 text-right font-medium">Delta</th>
+            <th className="px-3 py-2 text-left font-medium">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className="border-t border-slate-800 hover:bg-slate-900/50">
+              <td className="px-3 py-2">
+                <a
+                  href={row.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline decoration-slate-600 hover:decoration-slate-300"
+                >
+                  {row.id}
+                </a>
+              </td>
+              <td className="px-3 py-2">{row.weekday}</td>
+              <td className="px-3 py-2">{row.slot}</td>
+              <td className="px-3 py-2">{formatViennaDateTime(row.t1_publish)}</td>
+              <td className="px-3 py-2">{row.t2_indexed ? formatViennaDateTime(row.t2_indexed) : '–'}</td>
+              <td className="px-3 py-2 text-right tabular-nums">
+                {row.delta_minutes != null ? formatDelta(row.delta_minutes) : '–'}
+              </td>
+              <td className="px-3 py-2">
+                <span className={`rounded px-2 py-1 text-xs ${STATUS_STYLES[row.status]}`}>
+                  {STATUS_LABELS[row.status]}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ArchiveSection({ archives }: { archives: ArchiveSummary[] }) {
+  if (archives.length === 0) return null;
+
+  return (
+    <section className="mb-8">
+      <h2 className="mb-4 text-lg font-semibold">Archiv ({archives.length})</h2>
+      <div className="space-y-2">
+        {archives.map((a) => (
+          <ArchiveEntry key={a.id} archive={a} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ArchiveEntry({ archive }: { archive: ArchiveSummary }) {
+  const [rows, setRows] = useState<IndexingCheckRow[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleToggle(e: React.SyntheticEvent<HTMLDetailsElement>) {
+    if (!e.currentTarget.open || rows !== null) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/indexing-checker/archive/${archive.id}`, { cache: 'no-store' });
+      const data = await res.json();
+      setRows(data.checks ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <details className="rounded border border-slate-800" onToggle={handleToggle}>
+      <summary className="cursor-pointer px-4 py-3 text-sm text-slate-300">
+        {formatViennaDateTime(archive.archivedAt)} Uhr
+        {archive.filename ? ` · ${archive.filename}` : ''} · {archive.count} Video(s)
+      </summary>
+      <div className="px-4 pb-4">
+        {loading ? (
+          <p className="text-sm text-slate-400">Lädt…</p>
+        ) : rows && rows.length > 0 ? (
+          <ResultsTable rows={rows} />
+        ) : (
+          <p className="text-sm text-slate-400">Keine Einträge.</p>
+        )}
+      </div>
+    </details>
   );
 }
 

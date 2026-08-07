@@ -26,6 +26,21 @@ export type LastPollRun = {
   pendingIngested: number;
 };
 
+export type ArchiveEntry = {
+  id: string;
+  archivedAt: string;
+  /** Dateiname des Uploads, zu dem dieser Stand gehörte (falls bekannt). */
+  filename: string | null;
+  checks: IndexingCheckRow[];
+};
+
+export type ArchiveSummary = {
+  id: string;
+  archivedAt: string;
+  filename: string | null;
+  count: number;
+};
+
 type Store = {
   checks: Record<string, IndexingCheckRow>;
   quota: Record<string, number>;
@@ -39,6 +54,13 @@ type Store = {
    * geprüft.
    */
   pendingIds: string[];
+  /**
+   * Eingefrorene Stände früherer Upload-Runden - jeder neue Excel-Upload
+   * archiviert den bisherigen `checks`-Stand hier, bevor er zurückgesetzt
+   * wird. So zeigt die aktive Ergebnistabelle immer nur die aktuelle Datei,
+   * alte Runden bleiben aber über das Archiv einsehbar.
+   */
+  archives: ArchiveEntry[];
 };
 
 const DB_PATH = process.env.INDEXING_DB_PATH || path.join(process.cwd(), 'data', 'indexing-checker.json');
@@ -51,7 +73,14 @@ function load(): Store {
 
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-  const empty: Store = { checks: {}, quota: {}, lastUpload: null, lastPollRun: null, pendingIds: [] };
+  const empty: Store = {
+    checks: {},
+    quota: {},
+    lastUpload: null,
+    lastPollRun: null,
+    pendingIds: [],
+    archives: [],
+  };
 
   if (fs.existsSync(DB_PATH)) {
     try {
@@ -111,6 +140,43 @@ export function getAllChecks(): IndexingCheckRow[] {
   return Object.values(load().checks).sort((a, b) =>
     a.t1_publish < b.t1_publish ? 1 : a.t1_publish > b.t1_publish ? -1 : 0
   );
+}
+
+/**
+ * Friert den aktuellen `checks`-Stand als Archiv-Eintrag ein (verknüpft mit
+ * dem Dateinamen des bisherigen Uploads) und setzt die aktive Tracking-Runde
+ * zurück. Wird vor jedem neuen Excel-Upload aufgerufen. Kein Archiv-Eintrag,
+ * falls noch nichts erfasst war (z. B. beim allerersten Upload).
+ */
+export function archiveCurrentChecksAndReset(): void {
+  const s = load();
+  const currentChecks = Object.values(s.checks);
+
+  if (currentChecks.length > 0) {
+    s.archives.unshift({
+      id: new Date().toISOString(),
+      archivedAt: new Date().toISOString(),
+      filename: s.lastUpload?.filename ?? null,
+      checks: currentChecks,
+    });
+  }
+
+  s.checks = {};
+  s.pendingIds = [];
+  persist();
+}
+
+export function getArchives(): ArchiveSummary[] {
+  return load().archives.map((a) => ({
+    id: a.id,
+    archivedAt: a.archivedAt,
+    filename: a.filename,
+    count: a.checks.length,
+  }));
+}
+
+export function getArchiveById(id: string): ArchiveEntry | null {
+  return load().archives.find((a) => a.id === id) ?? null;
 }
 
 export function markLive(id: string, confirmedAtIso: string, nextPollAtIso: string): void {

@@ -40,6 +40,14 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   "AssetListExport", ID steht dort z. B. in Spalte D) - die Spalte wird über die
   Kopfzeile gesucht, nicht fix als Spalte A angenommen. Ohne erkennbare "ID"-Spalte
   fällt der Parser auf Spalte A zurück (`lib/indexing-checker/xlsx-parser.ts`).
+- **Archiv bei neuem Upload**: jeder neue Excel-Upload archiviert automatisch den
+  bisherigen Ergebnis-Stand (verknüpft mit dem Dateinamen des vorherigen Uploads) und
+  setzt die aktive Ergebnistabelle zurück (`lib/indexing-checker/db.ts`,
+  `archiveCurrentChecksAndReset`) - die Tabelle zeigt danach nur noch IDs aus der
+  aktuellen Datei, alte Runden bleiben aber über den "Archiv"-Bereich der Seite
+  (eigene, lazy geladene `<details>`-Einträge je Upload-Runde) vollständig einsehbar.
+  Archivierte IDs werden nicht mehr weiterverfolgt/gepollt - das Archiv ist ein
+  eingefrorener Schnappschuss, kein aktiver Tracking-Zustand.
 - **T1 (Publish)**: für jede ID wird `play_start` aus derselben Scheduling-API geholt,
   die auch der Most-Watched-Abgleich nutzt (`lib/cms-client.ts` → `fetchCmsProduct`,
   bestätigtes Feld - entspricht "Current Sunrise" im Dashboard-Export). Die URL wird
