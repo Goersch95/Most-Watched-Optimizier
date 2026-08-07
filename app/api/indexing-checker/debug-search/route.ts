@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const res = await fetch('https://google.serper.dev/search', {
       method: 'POST',
       headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: url }),
+      body: JSON.stringify({ q: `site:${url}` }),
       cache: 'no-store',
     });
     const data = await res.json();

@@ -26,10 +26,13 @@ export async function isUrlIndexedByGoogle(assetId: string, url: string): Promis
     const res = await fetch('https://google.serper.dev/search', {
       method: 'POST',
       headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-      // Bewusst ohne Anführungszeichen, siehe frühere Begründung beim
-      // Google-Custom-Search-Client: eine unquotierte URL-Suche nutzt
-      // Googles URL-Erkennung und findet indexierte Seiten zuverlässig.
-      body: JSON.stringify({ q: url }),
+      // Live verifiziert: eine bloße URL als Freitext-Query matcht auch
+      // Seiten, die die URL nur als Text erwähnen (z. B. ein Facebook-Post,
+      // der die URL im Snippet zitiert), nicht nur die URL selbst - false
+      // negative trotz tatsächlich indexierter Seite. "site:" schränkt
+      // gezielt auf die URL selbst ein, zuverlässige Standardmethode für
+      // einen Indexierungs-Check.
+      body: JSON.stringify({ q: `site:${url}` }),
       cache: 'no-store',
     });
 
