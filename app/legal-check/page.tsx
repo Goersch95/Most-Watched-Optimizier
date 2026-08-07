@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppNav } from '@/components/AppNav';
 import { DatePicker } from '@/components/DatePicker';
+import { downloadXlsx } from '@/lib/download-xlsx';
 
 type MismatchReason = 'catchup' | 'geo';
 type Daypart = 'PRIME-TIME' | 'LATE-PRIME' | null;
@@ -60,14 +61,85 @@ function DaypartBadge({ daypart }: { daypart: Daypart }) {
   );
 }
 
+const COMPARISON_ROW_HEADERS = [
+  'Product Code',
+  'Label',
+  'Titel (kurz)',
+  'Daypart',
+  'CatchUp (Excel)',
+  'CatchUp (API, Tage)',
+  'GEO-REST (Excel)',
+  'Geoblocking (API)',
+  'Abweichung',
+];
+
+function comparisonRowToXlsxRow(r: ComparisonRow): (string | number)[] {
+  return [
+    r.productCode,
+    r.label ?? r.title,
+    r.titleShort ?? '',
+    r.daypart ?? '',
+    r.catchUpRaw,
+    r.apiCatchUpDays != null ? Math.round(r.apiCatchUpDays * 10) / 10 : '',
+    r.geoRaw,
+    r.apiGeoblocking.join(', '),
+    r.mismatches.map((m) => MISMATCH_LABELS[m]).join(', '),
+  ];
+}
+
 export default function LegalCheckPage() {
   const [result, setResult] = useState<LegalCheckResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  // Dieselbe Zeile kann gleichzeitig in mehreren Tabellen auftauchen (z. B.
+  // Abweichungen + CatchUp 7 Tage) - eine Map über den Product Code dedupliziert
+  // automatisch, egal in welcher Tabelle sie markiert wurde.
+  const rowsByProductCode = useMemo(() => {
+    const map = new Map<string, ComparisonRow>();
+    if (!result) return map;
+    for (const r of [
+      ...result.mismatches,
+      ...result.catchUpBuckets['7'],
+      ...result.catchUpBuckets['30'],
+      ...result.catchUpBuckets.unbegrenzt,
+    ]) {
+      map.set(r.productCode, r);
+    }
+    return map;
+  }, [result]);
+
+  function toggleSelected(productCode: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(productCode)) next.delete(productCode);
+      else next.add(productCode);
+      return next;
+    });
+  }
+
+  function toggleSelectedMany(productCodes: string[], checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const code of productCodes) {
+        if (checked) next.add(code);
+        else next.delete(code);
+      }
+      return next;
+    });
+  }
+
+  async function exportSelected() {
+    const rows = [...selected].map((code) => rowsByProductCode.get(code)).filter((r): r is ComparisonRow => Boolean(r));
+    await downloadXlsx('legal-check-ausgewaehlte-ergebnisse.xlsx', [
+      { name: 'Ausgewählte Ergebnisse', headers: COMPARISON_ROW_HEADERS, rows: rows.map(comparisonRowToXlsxRow) },
+    ]);
+  }
 
   async function handleLogout() {
     await fetch('/api/logout', { method: 'POST' });
@@ -82,6 +154,7 @@ export default function LegalCheckPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setSelected(new Set());
 
     try {
       const formData = new FormData();
@@ -106,41 +179,10 @@ export default function LegalCheckPage() {
     }
   }
 
-  function exportRows(rows: ComparisonRow[], filename: string) {
-    const header = [
-      'Product Code',
-      'Label',
-      'Titel (kurz)',
-      'Daypart',
-      'CatchUp (Excel)',
-      'CatchUp (API, Tage)',
-      'GEO-REST (Excel)',
-      'Geoblocking (API)',
-      'Abweichung',
-    ];
-    const lines = rows.map((r) =>
-      [
-        r.productCode,
-        r.label ?? r.title,
-        r.titleShort ?? '',
-        r.daypart ?? '',
-        r.catchUpRaw,
-        r.apiCatchUpDays != null ? Math.round(r.apiCatchUpDays * 10) / 10 : '',
-        r.geoRaw,
-        r.apiGeoblocking.join(', '),
-        r.mismatches.map((m) => MISMATCH_LABELS[m]).join(', '),
-      ]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    const csv = [header.join(','), ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function exportRows(rows: ComparisonRow[], filename: string) {
+    await downloadXlsx(filename, [
+      { name: 'Ergebnisse', headers: COMPARISON_ROW_HEADERS, rows: rows.map(comparisonRowToXlsxRow) },
+    ]);
   }
 
   return (
@@ -208,16 +250,30 @@ export default function LegalCheckPage() {
 
       {result && (
         <>
-          <div className="mb-8 rounded border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm text-slate-400">
-            {result.totalRows} Zeilen in der Datei · {result.notInApi} nicht in der API gefunden (übersprungen)
-            {result.outsideDateRange > 0 ? ` · ${result.outsideDateRange} außerhalb des Zeitraums` : ''} ·{' '}
-            {result.unparseable.length} nicht auswertbar · {result.mismatches.length} Abweichung(en)
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm text-slate-400">
+            <span>
+              {result.totalRows} Zeilen in der Datei · {result.notInApi} nicht in der API gefunden (übersprungen)
+              {result.outsideDateRange > 0 ? ` · ${result.outsideDateRange} außerhalb des Zeitraums` : ''} ·{' '}
+              {result.unparseable.length} nicht auswertbar · {result.mismatches.length} Abweichung(en)
+            </span>
+            {selected.size > 0 && (
+              <button
+                type="button"
+                onClick={exportSelected}
+                className="rounded bg-red-600 px-3 py-1.5 text-xs text-white hover:bg-red-500"
+              >
+                Ausgewählte exportieren ({selected.size})
+              </button>
+            )}
           </div>
 
           <Section
             title={`Abweichungen (${result.mismatches.length})`}
             rows={result.mismatches}
-            onExport={() => exportRows(result.mismatches, 'legal-check-abweichungen.csv')}
+            onExport={() => exportRows(result.mismatches, 'legal-check-abweichungen.xlsx')}
+            selected={selected}
+            onToggle={toggleSelected}
+            onToggleAll={toggleSelectedMany}
             defaultOpen
             emptyText="Keine Abweichungen gefunden."
           />
@@ -225,19 +281,28 @@ export default function LegalCheckPage() {
           <Section
             title={`CatchUp 7 Tage (${result.catchUpBuckets['7'].length})`}
             rows={result.catchUpBuckets['7']}
-            onExport={() => exportRows(result.catchUpBuckets['7'], 'legal-check-catchup-7-tage.csv')}
+            onExport={() => exportRows(result.catchUpBuckets['7'], 'legal-check-catchup-7-tage.xlsx')}
+            selected={selected}
+            onToggle={toggleSelected}
+            onToggleAll={toggleSelectedMany}
           />
 
           <Section
             title={`CatchUp 30 Tage (${result.catchUpBuckets['30'].length})`}
             rows={result.catchUpBuckets['30']}
-            onExport={() => exportRows(result.catchUpBuckets['30'], 'legal-check-catchup-30-tage.csv')}
+            onExport={() => exportRows(result.catchUpBuckets['30'], 'legal-check-catchup-30-tage.xlsx')}
+            selected={selected}
+            onToggle={toggleSelected}
+            onToggleAll={toggleSelectedMany}
           />
 
           <Section
             title={`Unbegrenzt verfügbar (${result.catchUpBuckets.unbegrenzt.length})`}
             rows={result.catchUpBuckets.unbegrenzt}
-            onExport={() => exportRows(result.catchUpBuckets.unbegrenzt, 'legal-check-unbegrenzt.csv')}
+            onExport={() => exportRows(result.catchUpBuckets.unbegrenzt, 'legal-check-unbegrenzt.xlsx')}
+            selected={selected}
+            onToggle={toggleSelected}
+            onToggleAll={toggleSelectedMany}
           />
 
           {result.unparseable.length > 0 && (
@@ -291,15 +356,23 @@ function Section({
   title,
   rows,
   onExport,
+  selected,
+  onToggle,
+  onToggleAll,
   defaultOpen = false,
   emptyText = 'Keine Einträge.',
 }: {
   title: string;
   rows: ComparisonRow[];
   onExport: () => void;
+  selected: Set<string>;
+  onToggle: (productCode: string) => void;
+  onToggleAll: (productCodes: string[], checked: boolean) => void;
   defaultOpen?: boolean;
   emptyText?: string;
 }) {
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.productCode));
+
   return (
     <details className="mb-8 rounded border border-slate-800" open={defaultOpen}>
       <summary className="flex cursor-pointer items-center justify-between px-4 py-3">
@@ -313,7 +386,7 @@ function Section({
             }}
             className="rounded bg-red-600 px-3 py-1.5 text-xs text-white hover:bg-red-500"
           >
-            CSV-Export
+            Excel-Export
           </button>
         )}
       </summary>
@@ -325,6 +398,19 @@ function Section({
           <table className="w-full text-sm">
             <thead className="bg-slate-900 text-slate-400">
               <tr>
+                <th className="px-3 py-2 text-left font-medium">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={(e) =>
+                      onToggleAll(
+                        rows.map((r) => r.productCode),
+                        e.target.checked
+                      )
+                    }
+                    aria-label="Alle in dieser Tabelle auswählen"
+                  />
+                </th>
                 <th className="px-3 py-2 text-left font-medium">Product Code</th>
                 <th className="px-3 py-2 text-left font-medium">Label</th>
                 <th className="px-3 py-2 text-left font-medium">Titel (kurz)</th>
@@ -339,6 +425,14 @@ function Section({
             <tbody>
               {rows.map((r) => (
                 <tr key={r.productCode} className="border-t border-slate-800 hover:bg-slate-900/50">
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.productCode)}
+                      onChange={() => onToggle(r.productCode)}
+                      aria-label={`${r.productCode} auswählen`}
+                    />
+                  </td>
                   <td className="px-3 py-2">{r.productCode}</td>
                   <td className="px-3 py-2">{r.label ?? r.title}</td>
                   <td className="px-3 py-2">{r.titleShort ?? '–'}</td>

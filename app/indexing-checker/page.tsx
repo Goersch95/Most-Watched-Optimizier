@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppNav } from '@/components/AppNav';
+import { downloadXlsx } from '@/lib/download-xlsx';
 import { formatViennaDateTime } from '@/lib/indexing-checker/schedule';
 
 type IndexingStatus = 'pending' | 'live' | 'found';
@@ -145,21 +146,20 @@ export default function IndexingCheckerPage() {
     }
   }
 
-  function exportCsv() {
-    const header = ['ID', 'URL', 'Wochentag', 'Slot', 'T1 (Publish)', 'T2 (Indexiert)', 'Delta (Min)', 'Status'];
-    const lines = rows.map((r) =>
-      [r.id, r.url, r.weekday, r.slot, r.t1_publish, r.t2_indexed ?? '', r.delta_minutes ?? '', STATUS_LABELS[r.status]]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    const csv = [header.join(','), ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'indexierungs-check.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  async function exportXlsx() {
+    const headers = ['ID', 'URL', 'Wochentag', 'Slot', 'T1 (Publish)', 'T2 (Indexiert)', 'Delta (Min)', 'Status'];
+    const dataRows = rows.map((r) => [
+      r.id,
+      r.url,
+      r.weekday,
+      r.slot,
+      r.t1_publish,
+      r.t2_indexed ?? '',
+      r.delta_minutes ?? '',
+      STATUS_LABELS[r.status],
+    ]);
+
+    await downloadXlsx('indexierungs-check.xlsx', [{ name: 'Ergebnisse', headers, rows: dataRows }]);
   }
 
   const foundRows = rows.filter((r) => r.status === 'found' && r.delta_minutes != null);
@@ -273,11 +273,11 @@ export default function IndexingCheckerPage() {
           </button>
           <button
             type="button"
-            onClick={exportCsv}
+            onClick={exportXlsx}
             disabled={rows.length === 0}
             className="rounded bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            CSV-Export
+            Excel-Export
           </button>
         </div>
       </div>

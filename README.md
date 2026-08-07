@@ -156,6 +156,23 @@ synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich geg
   und 24:00 - sonst kein Badge. Wie bei der Slot-Zuordnung im Indexierungs-Checker wird
   dafür explizit über `Intl.DateTimeFormat`/`Europe/Vienna` konvertiert (Sommer-/Winterzeit-
   sicher), nicht naiv am UTC-String geparst.
+- **Zeilen markieren + übergreifender Export**: jede Zeile in den vier Hauptergebnis-
+  tabellen (Abweichungen, CatchUp 7/30 Tage, Unbegrenzt) hat eine Checkbox, plus eine
+  "Alle auswählen"-Checkbox je Tabelle. Da dieselbe Zeile gleichzeitig in mehreren
+  Tabellen auftauchen kann (z. B. eine Abweichung mit 7 Tagen CatchUp), dedupliziert
+  eine Map über den Product Code automatisch beim Export - "Ausgewählte exportieren"
+  oben auf der Seite bündelt alle markierten Zeilen aus allen Tabellen in eine Datei,
+  unabhängig davon, wo sie markiert wurden. Die Tabelle "Nicht auswertbar" hat bewusst
+  keine Checkboxen (anderes Zeilenformat, nicht Teil des übergreifenden Exports).
+
+## Excel-Export (app-weit)
+
+Alle Export-Buttons (Legal Heavy Check, Indexierungs-Checker) erzeugen echte `.xlsx`-
+Dateien statt CSV. Da `exceljs` Node-Abhängigkeiten hat (fs/stream) und im Browser-Bundle
+riskant wäre, läuft der Export server-seitig über einen generischen Endpoint:
+`app/api/export-xlsx/route.ts` (nimmt `{ filename, sheets: [{ name, headers, rows }] }`
+entgegen, baut die Datei mit `lib/xlsx-export.ts` und liefert sie als Binary zurück) -
+`lib/download-xlsx.ts` kapselt den Fetch-Aufruf plus Blob-Download im Browser dahinter.
 
 ## Login
 
