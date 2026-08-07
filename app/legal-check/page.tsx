@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppNav } from '@/components/AppNav';
+import { DatePicker } from '@/components/DatePicker';
 
 type MismatchReason = 'catchup' | 'geo';
 type Daypart = 'PRIME-TIME' | 'LATE-PRIME' | null;
@@ -161,24 +162,8 @@ export default function LegalCheckPage() {
       </p>
 
       <div className="mb-4 flex flex-wrap items-end gap-4 rounded border border-slate-800 bg-slate-900/50 p-4">
-        <label className="flex flex-col gap-1 text-sm text-slate-300">
-          Zeitraum von
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-300">
-          bis
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="rounded border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200"
-          />
-        </label>
+        <DatePicker label="Zeitraum von" value={dateFrom} onChange={setDateFrom} />
+        <DatePicker label="bis" value={dateTo} onChange={setDateTo} />
         {(dateFrom || dateTo) && (
           <button
             type="button"
