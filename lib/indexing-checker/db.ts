@@ -143,6 +143,30 @@ export function getAllChecks(): IndexingCheckRow[] {
 }
 
 /**
+ * Setzt bei allen noch nicht gefundenen "live"-Zeilen den nächsten
+ * Prüfzeitpunkt auf "jetzt" - z. B. nach einem Bugfix am Matching, damit
+ * Zeilen, die durch viele erfolglose Versuche schon im 24h-Rhythmus
+ * gelandet sind, nicht erst bis zu einen Tag auf die nächste (jetzt
+ * korrekte) Prüfung warten müssen. Gibt die Anzahl der zurückgesetzten
+ * Zeilen zurück.
+ */
+export function resetLiveRowsToDueNow(): number {
+  const s = load();
+  const nowIso = new Date().toISOString();
+  let count = 0;
+
+  for (const row of Object.values(s.checks)) {
+    if (row.status === 'live' && row.next_poll_at > nowIso) {
+      row.next_poll_at = nowIso;
+      count += 1;
+    }
+  }
+
+  if (count > 0) persist();
+  return count;
+}
+
+/**
  * Friert den aktuellen `checks`-Stand als Archiv-Eintrag ein (verknüpft mit
  * dem Dateinamen des bisherigen Uploads) und setzt die aktive Tracking-Runde
  * zurück. Wird vor jedem neuen Excel-Upload aufgerufen. Kein Archiv-Eintrag,

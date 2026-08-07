@@ -75,6 +75,13 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   Search" wurde geprüft und verworfen: durchsucht nicht den öffentlichen
   Google-Webindex, sondern nur selbst angegebene Inhalte - hätte nie widergespiegelt,
   ob eine Seite tatsächlich für normale Nutzer in der echten Google-Suche auftaucht.
+- **"Offene sofort neu prüfen"**: Button in der UI, setzt bei allen noch nicht
+  gefundenen "live"-Zeilen den nächsten Prüfzeitpunkt auf "jetzt" zurück
+  (`resetLiveRowsToDueNow` in `db.ts`) und stößt direkt einen Polling-Durchlauf an
+  (`/api/indexing-checker/recheck-now`), statt bis zu 24h auf den planmäßigen Check zu
+  warten. Wichtig nach einem Bugfix am Matching (z. B. der `site:`-Fix oben): Zeilen,
+  die vorher wiederholt erfolglos geprüft wurden, stecken sonst noch bis zu einen Tag
+  im "täglich"-Rhythmus fest, obwohl die zugrundeliegende Seite längst indexiert wäre.
 - **Persistenz**: einfache JSON-Datei (`lib/indexing-checker/db.ts`), Pfad über
   `INDEXING_DB_PATH` konfigurierbar (Default: `data/indexing-checker.json`). Bewusst
   keine SQLite/natives Node-Modul - hat in Docker (Alpine wie Debian) zu Laufzeit-

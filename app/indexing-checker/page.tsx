@@ -67,8 +67,10 @@ export default function IndexingCheckerPage() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadSummary, setUploadSummary] = useState<string | null>(null);
+  const [recheckSummary, setRecheckSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -143,6 +145,37 @@ export default function IndexingCheckerPage() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  /**
+   * Macht alle offenen "live"-Zeilen sofort fällig statt bis zu 24h auf die
+   * planmäßige Prüfung zu warten - sinnvoll direkt nach einem Bugfix am
+   * Matching (Zeilen, die vorher wiederholt erfolglos geprüft wurden,
+   * stecken sonst noch länger im täglichen Rhythmus fest).
+   */
+  async function handleRecheckNow() {
+    setRechecking(true);
+    setError(null);
+    setRecheckSummary(null);
+
+    try {
+      const res = await fetch('/api/indexing-checker/recheck-now', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? 'Neu-Prüfen fehlgeschlagen.');
+        return;
+      }
+
+      setRecheckSummary(
+        `${data.reset} Zeile(n) sofort fällig gemacht · ${data.checked} geprüft, ${data.foundNow} neu gefunden.`
+      );
+      await loadResults();
+    } catch {
+      setError('Neu-Prüfen fehlgeschlagen. Bitte erneut versuchen.');
+    } finally {
+      setRechecking(false);
     }
   }
 
@@ -259,6 +292,7 @@ export default function IndexingCheckerPage() {
             Wird noch automatisch nachverfolgt ({pendingIds.length}): {pendingIds.join(', ')}
           </p>
         )}
+        {recheckSummary && <p className="text-emerald-400">{recheckSummary}</p>}
       </div>
 
       <div className="mb-4 flex items-center justify-between">
@@ -270,6 +304,15 @@ export default function IndexingCheckerPage() {
             className="rounded border border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-900"
           >
             Aktualisieren
+          </button>
+          <button
+            type="button"
+            onClick={handleRecheckNow}
+            disabled={rechecking}
+            title="Setzt alle offenen Zeilen sofort auf fällig und prüft direkt neu, statt bis zu 24h zu warten."
+            className="rounded border border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {rechecking ? 'Prüft…' : 'Offene sofort neu prüfen'}
           </button>
           <button
             type="button"
