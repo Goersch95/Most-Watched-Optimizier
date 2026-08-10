@@ -43,7 +43,7 @@ function guessTypeFromId(assetId: string): ContentType {
 
 /**
  * Mapping der `content_type`-Werte aus der Scheduling-API
- * (https://graphql-proxy-staging.redbull.com/api/scheduling/v1/stv/products/{id},
+ * (https://graphql-proxy.redbull.com/api/scheduling/v1/stv/products/{id},
  * z. B. "clip", "film", "episode", "live_program"/"live program",
  * "video_channel") auf die App-Kategorien. Vergleich case-insensitiv und
  * Unterstriche werden wie Leerzeichen behandelt, da die API beide

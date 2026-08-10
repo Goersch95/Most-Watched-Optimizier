@@ -10,8 +10,9 @@ Das Grundgerüst steht: Upload, CSV-Parsing, Ranglisten-UI, Copy-Buttons, CMS-Ra
 Login. Der CMS-Abgleich (`lib/cms-client.ts`) spricht den echten Scheduling-API-Endpoint an:
 
 - `CMS_API_BASE_URL` muss auf die Basis-URL ohne `/products/{id}` zeigen, z. B.
-  `https://graphql-proxy-staging.redbull.com/api/scheduling/v1/stv` - die ID wird pro
-  Asset angehängt.
+  `https://graphql-proxy.redbull.com/api/scheduling/v1/stv` (Prod - vorher
+  `graphql-proxy-staging.redbull.com`, seit der Produktiv-Freigabe umgestellt) - die ID
+  wird pro Asset angehängt.
 - Der Contenttype wird aus dem Feld `content_type` der Antwort gelesen (case-insensitiv,
   `_` wird wie Leerzeichen behandelt): `clip` → Meistgesehene Clips, `film`/`episode` →
   Meistgesehene Sendungen, `live_program` → Meistgesehene Live Programme, `video_channel`
@@ -247,9 +248,6 @@ npm run dev
 
 ## Offene Punkte
 
-- Gegen die echte CMS-API testen, sobald ein gültiger `CMS_API_KEY` für
-  `graphql-proxy-staging.redbull.com` vorliegt (aktuell nur gegen die Doku/Feldnamen
-  implementiert, nicht live gegen die API verifiziert).
 - "Nicht sicher"-Warnung im Browser: prüfen, ob in Coolify für die Domain ein gültiges
   Let's-Encrypt-Zertifikat ausgestellt wurde (Domains-Einstellung → Zertifikatsstatus),
   und ob "Force HTTPS" aktiv ist. Falls die Domain über Cloudflare läuft: DNS-Eintrag auf
