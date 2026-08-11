@@ -30,6 +30,7 @@ export type ComparisonRow = {
   geoRaw: string;
   apiCatchUpDays: number | null;
   apiGeoblocking: string[];
+  startTime: string | null;
   daypart: Daypart;
   mismatches: MismatchReason[];
 };
@@ -42,6 +43,7 @@ export type UnparseableRow = {
   titleShort: string | null;
   catchUpRaw: string;
   geoRaw: string;
+  startTime: string | null;
   daypart: Daypart;
   reason: string;
 };

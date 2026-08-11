@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AppNav } from '@/components/AppNav';
 import { DatePicker } from '@/components/DatePicker';
 import { downloadXlsx } from '@/lib/download-xlsx';
+import { formatViennaDateTime } from '@/lib/indexing-checker/schedule';
 
 type MismatchReason = 'catchup' | 'geo';
 type Daypart = 'PRIME-TIME' | 'LATE-PRIME' | null;
@@ -19,6 +20,7 @@ type ComparisonRow = {
   geoRaw: string;
   apiCatchUpDays: number | null;
   apiGeoblocking: string[];
+  startTime: string | null;
   daypart: Daypart;
   mismatches: MismatchReason[];
 };
@@ -31,6 +33,7 @@ type UnparseableRow = {
   titleShort: string | null;
   catchUpRaw: string;
   geoRaw: string;
+  startTime: string | null;
   daypart: Daypart;
   reason: string;
 };
@@ -65,6 +68,7 @@ const COMPARISON_ROW_HEADERS = [
   'Product Code',
   'Label',
   'Titel (kurz)',
+  'Start (Wien)',
   'Daypart',
   'CatchUp (Excel)',
   'CatchUp (API, Tage)',
@@ -78,6 +82,7 @@ function comparisonRowToXlsxRow(r: ComparisonRow): (string | number)[] {
     r.productCode,
     r.label ?? r.title,
     r.titleShort ?? '',
+    r.startTime ? formatViennaDateTime(r.startTime) : '',
     r.daypart ?? '',
     r.catchUpRaw,
     r.apiCatchUpDays != null ? Math.round(r.apiCatchUpDays * 10) / 10 : '',
@@ -343,6 +348,7 @@ export default function LegalCheckPage() {
                       <th className="px-3 py-2 text-left font-medium">Product Code</th>
                       <th className="px-3 py-2 text-left font-medium">Label</th>
                       <th className="px-3 py-2 text-left font-medium">Titel (kurz)</th>
+                      <th className="px-3 py-2 text-left font-medium">Start (Wien)</th>
                       <th className="px-3 py-2 text-left font-medium">Daypart</th>
                       <th className="px-3 py-2 text-left font-medium">CatchUp</th>
                       <th className="px-3 py-2 text-left font-medium">GEO-REST.</th>
@@ -355,6 +361,7 @@ export default function LegalCheckPage() {
                         <td className="px-3 py-2">{r.productCode}</td>
                         <td className="px-3 py-2">{r.label ?? r.title}</td>
                         <td className="px-3 py-2">{r.titleShort ?? '–'}</td>
+                        <td className="px-3 py-2">{r.startTime ? formatViennaDateTime(r.startTime) : '–'}</td>
                         <td className="px-3 py-2">
                           <DaypartBadge daypart={r.daypart} />
                         </td>
@@ -436,6 +443,7 @@ function Section({
                 <th className="px-3 py-2 text-left font-medium">Product Code</th>
                 <th className="px-3 py-2 text-left font-medium">Label</th>
                 <th className="px-3 py-2 text-left font-medium">Titel (kurz)</th>
+                <th className="px-3 py-2 text-left font-medium">Start (Wien)</th>
                 <th className="px-3 py-2 text-left font-medium">Daypart</th>
                 <th className="px-3 py-2 text-left font-medium">CatchUp (Excel)</th>
                 <th className="px-3 py-2 text-left font-medium">CatchUp (API)</th>
@@ -458,6 +466,7 @@ function Section({
                   <td className="px-3 py-2">{r.productCode}</td>
                   <td className="px-3 py-2">{r.label ?? r.title}</td>
                   <td className="px-3 py-2">{r.titleShort ?? '–'}</td>
+                  <td className="px-3 py-2">{r.startTime ? formatViennaDateTime(r.startTime) : '–'}</td>
                   <td className="px-3 py-2">
                     <DaypartBadge daypart={r.daypart} />
                   </td>

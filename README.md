@@ -169,6 +169,11 @@ synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich geg
   und 24:00 - sonst kein Badge. Wie bei der Slot-Zuordnung im Indexierungs-Checker wird
   dafür explizit über `Intl.DateTimeFormat`/`Europe/Vienna` konvertiert (Sommer-/Winterzeit-
   sicher), nicht naiv am UTC-String geparst.
+- **Start-Zeit-Spalte**: dasselbe `start_time`-Feld, das für die Daypart-Kennzeichnung
+  ausgewertet wird, wird zusätzlich als eigene "Start (Wien)"-Spalte direkt hinter dem
+  Titel angezeigt (formatiert über `formatViennaDateTime` aus dem Indexierungs-Checker,
+  wiederverwendet statt dupliziert), sowohl in den Hauptergebnistabellen als auch in
+  "Nicht auswertbar" und im Excel-Export.
 - **Zeilen markieren + übergreifender Export**: jede Zeile in den vier Hauptergebnis-
   tabellen (Abweichungen, CatchUp 7/30 Tage, Unbegrenzt) hat eine Checkbox, plus eine
   "Alle auswählen"-Checkbox je Tabelle. Da dieselbe Zeile gleichzeitig in mehreren

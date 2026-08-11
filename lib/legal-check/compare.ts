@@ -68,6 +68,7 @@ export function compareLegalData(
         titleShort: null,
         catchUpRaw: row.catchUpRaw,
         geoRaw: row.geoRaw,
+        startTime: entry.startTime,
         daypart: classifyDaypart(entry.startTime),
         reason: [
           catchUpParsed.kind === 'unparseable' ? catchUpParsed.reason : null,
@@ -123,6 +124,7 @@ export function compareLegalData(
       geoRaw: row.geoRaw,
       apiCatchUpDays: apiDays,
       apiGeoblocking: entry.geoblocking,
+      startTime: entry.startTime,
       daypart: classifyDaypart(entry.startTime),
       mismatches: mismatchReasons,
     };
