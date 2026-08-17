@@ -157,6 +157,14 @@ synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich geg
   Produkte und werden rausgefiltert. `vod_rights.end` fehlt bei manchen Einträgen (nur
   `start` vorhanden) - wird als `null` behandelt, führt zu einer CatchUp-Abweichung, falls
   die Excel eine konkrete Tagesanzahl erwartet.
+- **Mehrfache Ausstrahlungen derselben VIN**: dieselbe VIN kann mehrfach im `schedule`
+  auftauchen (Erstausstrahlung + Wiederholung(en)), teils mit unterschiedlichem `assetId`/
+  `title`/`start_time`. Bestätigt: es muss immer die **Erstausstrahlung** (frühester
+  `start_time`) verwendet werden, nicht irgendeine beliebige Wiederholung - sonst könnte
+  z. B. eine Prime-Time-Erstausstrahlung durch eine spätere Nicht-Prime-Wiederholung
+  "überschrieben" werden und die PRIME-TIME/LATE-PRIME-Kennzeichnung fälschlich leer
+  bleiben ("rutscht durch"). `fetchEpgEntries()` wählt daher pro VIN gezielt den Eintrag
+  mit dem frühesten `start_time`, nicht einfach den letzten in der API-Reihenfolge.
 - **Titel-Anreicherung** (`lib/legal-check/cms-enrich.ts`): In den Ergebnistabellen wird
   statt des Excel-Titels `label` und `title_short` aus derselben CMS-Scheduling-API
   angezeigt, die auch der Most-Watched-Abgleich nutzt - über die `assetId` aus dem

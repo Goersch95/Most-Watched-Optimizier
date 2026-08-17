@@ -3,6 +3,20 @@ import type { EpgEntry } from './types';
 const EPG_URL = 'https://pms-epg-service.liiift.io/api/epg/v1/epgs/stvat/public';
 
 /**
+ * Dieselbe VIN kann mehrfach im Schedule auftauchen (Erstausstrahlung +
+ * Wiederholungen). Bestätigt: es muss immer die Erstausstrahlung (frühester
+ * start_time) verwendet werden - eine spätere Wiederholung kann außerhalb
+ * der Primetime liegen und würde die PRIME-TIME/LATE-PRIME-Kennzeichnung
+ * sonst verfälschen ("rutscht durch"). Einträge ohne start_time werden nie
+ * gegenüber einem Eintrag mit start_time bevorzugt.
+ */
+function isEarlierBroadcast(candidate: EpgEntry, current: EpgEntry): boolean {
+  if (!candidate.startTime) return false;
+  if (!current.startTime) return true;
+  return candidate.startTime < current.startTime;
+}
+
+/**
  * Einzelner Bulk-Abruf statt einer Anfrage pro Produkt. Response-Form
  * verifiziert (nicht mehr geraten): { channel: {...}, schedule: [...] } -
  * die eigentlichen Produkte liegen unter "schedule". Deckt vermutlich nur
@@ -43,14 +57,20 @@ export async function fetchEpgEntries(): Promise<Map<string, EpgEntry>> {
     const assetId =
       typeof obj.assetId === 'string' && obj.assetId.toLowerCase() !== 'placeholder' ? obj.assetId : null;
 
-    map.set(vin.toUpperCase(), {
+    const candidate: EpgEntry = {
       vin,
       assetId,
       vodRightsStart: typeof vodRights?.start === 'string' ? vodRights.start : null,
       vodRightsEnd: typeof vodRights?.end === 'string' ? vodRights.end : null,
       geoblocking,
       startTime: typeof obj.start_time === 'string' ? obj.start_time : null,
-    });
+    };
+
+    const key = vin.toUpperCase();
+    const existing = map.get(key);
+    if (!existing || isEarlierBroadcast(candidate, existing)) {
+      map.set(key, candidate);
+    }
   }
 
   return map;
