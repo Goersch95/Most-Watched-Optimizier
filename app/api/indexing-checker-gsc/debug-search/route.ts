@@ -1,6 +1,7 @@
 import { JWT } from 'google-auth-library';
 import { NextRequest, NextResponse } from 'next/server';
 import { buildServusTvUrl } from '@/lib/indexing-checker/servustv';
+import { normalizePrivateKey } from '@/lib/indexing-checker-gsc/search-console-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
   const url = buildServusTvUrl(id);
   const client = new JWT({
     email,
-    key: rawKey.replace(/\\n/g, '\n'),
+    key: normalizePrivateKey(rawKey),
     scopes: ['https://www.googleapis.com/auth/webmasters.readonly'],
   });
 
