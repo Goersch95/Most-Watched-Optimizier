@@ -112,6 +112,54 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   UI konvertieren deshalb explizit nach `Europe/Vienna` (inkl. Sommer-/Winterzeit) über
   `Intl.DateTimeFormat` (`lib/indexing-checker/schedule.ts`).
 
+## Google-Indexierungs-Checker (Search Console) - Parallel-Variante
+
+Eigener Tab (`/indexing-checker-gsc`), bewusst als komplett unabhängige zweite
+Instanz des obigen Checkers gebaut (eigene Datenhaltung unter
+`lib/indexing-checker-gsc/`, eigene API-Routen unter `/api/indexing-checker-gsc/*`,
+eigener Scheduled Task) - kein gemeinsamer Code-Pfad mit dem Serper-Checker
+außer den stabilen, reinen Hilfsmodulen (`schedule.ts`, `servustv.ts`,
+`xlsx-parser.ts`), damit ein Fehler in der einen Variante die andere nicht
+beeinflussen kann. Ziel: dieselbe Excel-Datei auf beiden Tabs hochladen und die
+Ergebnisse gegenüberstellen, um zu sehen, ob und wie stark sich Serper.dev und
+die offizielle Google-Quelle unterscheiden - danach lässt sich entscheiden, ob
+eine der beiden Varianten abgeschaltet wird.
+
+- **T2 (Indexiert)** läuft hier über die offizielle **Search Console URL
+  Inspection API** (`lib/indexing-checker-gsc/search-console-client.ts`) statt
+  über Serper.dev - liefert Googles tatsächlichen, exakten Indexierungsstatus
+  (Feld `inspectionResult.indexStatusResult.verdict`, `"PASS"` = indexiert)
+  statt einer SERP-Annäherung. Kostenlos, offizielles Limit ca. 2.000
+  Anfragen/Tag pro Property; ein eigenes, deutlich niedrigeres
+  Sicherheits-Tageslimit (`DAILY_GSC_QUOTA` in `pipeline.ts`) schützt nur vor
+  einem versehentlichen Burst, ist aber kein Kosten-Deckel wie beim
+  Serper-Checker.
+  **Noch nicht live gegen die echte API verifiziert** (Implementierung nach
+  offizieller Google-Doku, siehe `search-console-client.ts`) - der
+  Debug-Endpoint (`/api/indexing-checker-gsc/debug-search?id=...`) zeigt die
+  rohe API-Antwort für eine ID, genau dafür gedacht, das nach dem ersten
+  echten Test zu bestätigen bzw. nachzujustieren.
+- **Setup**: Ein Service-Account in Google Cloud anlegen (im selben Projekt wie
+  Serper/CMS oder einem neuen), **Search Console API** aktivieren, den
+  Service-Account-JSON-Key erzeugen. Dann die Service-Account-E-Mail-Adresse in
+  der [Search Console](https://search.google.com/search-console) unter
+  Einstellungen → Nutzer und Berechtigungen als Nutzer zur Property hinzufügen
+  (mind. "Eingeschränkt" reicht für die URL Inspection API). E-Mail und Private
+  Key (aus dem JSON-Key, `\n` bleiben als literale Zeichenfolge stehen) in
+  `GSC_SERVICE_ACCOUNT_EMAIL`/`GSC_SERVICE_ACCOUNT_PRIVATE_KEY` eintragen, die
+  geprüfte Property in `GSC_SITE_URL` (z. B. `sc-domain:servustv.com`).
+- **"Indexierung beantragen" bleibt manuell**: Die Search Console bietet für
+  normale Inhalte keine API, um den "Indexierung beantragen"-Button
+  programmatisch auszulösen - das ist offiziell nur für `JobPosting`-/
+  `BroadcastEvent`-strukturierte Daten über die separate **Indexing API**
+  vorgesehen. Ohne so ein Markup auf den Video-Seiten bleibt der Klick in der
+  echten Search-Console-Oberfläche nötig; Teammitglieder ohne eigenen
+  Search-Console-Zugang brauchen dafür mindestens die Rolle "Eingeschränkt" auf
+  der Property.
+- **Eigener Scheduler**: analog zum Serper-Checker ein zweiter Coolify
+  Scheduled Task gegen `/api/indexing-checker-gsc/poll` mit
+  `INDEXING_GSC_POLL_SECRET` als Bearer-Token.
+
 ## Legal Heavy Check
 
 Dritte Rubrik (`/legal-check`), gleicht den Legal-Export (CSV, Spalten "Product code",

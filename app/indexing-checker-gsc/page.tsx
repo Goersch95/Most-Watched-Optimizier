@@ -58,7 +58,14 @@ type ArchiveSummary = {
   count: number;
 };
 
-export default function IndexingCheckerPage() {
+/**
+ * Parallel-Variante zu /indexing-checker: identische Bedienung, aber T2
+ * (Indexiert) läuft über die offizielle Search Console URL Inspection API
+ * statt über Serper.dev - komplett eigene Datenhaltung
+ * (lib/indexing-checker-gsc/db.ts), damit beide unabhängig voneinander
+ * laufen und sich die Ergebnisse vergleichen lassen (siehe README).
+ */
+export default function IndexingCheckerGscPage() {
   const [rows, setRows] = useState<IndexingCheckRow[]>([]);
   const [lastUpload, setLastUpload] = useState<LastUpload | null>(null);
   const [lastPollRun, setLastPollRun] = useState<LastPollRun | null>(null);
@@ -83,7 +90,7 @@ export default function IndexingCheckerPage() {
   async function loadResults() {
     setLoading(true);
     try {
-      const res = await fetch('/api/indexing-checker/results', { cache: 'no-store' });
+      const res = await fetch('/api/indexing-checker-gsc/results', { cache: 'no-store' });
       const data = await res.json();
       setRows(data.checks ?? []);
       setLastUpload(data.lastUpload ?? null);
@@ -102,7 +109,7 @@ export default function IndexingCheckerPage() {
 
     setDeleting(true);
     try {
-      await fetch('/api/indexing-checker/last-upload', { method: 'DELETE' });
+      await fetch('/api/indexing-checker-gsc/last-upload', { method: 'DELETE' });
       setLastUpload(null);
     } finally {
       setDeleting(false);
@@ -125,7 +132,7 @@ export default function IndexingCheckerPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/indexing-checker/upload', { method: 'POST', body: formData });
+      const res = await fetch('/api/indexing-checker-gsc/upload', { method: 'POST', body: formData });
       const data = await res.json();
 
       if (!res.ok) {
@@ -148,19 +155,13 @@ export default function IndexingCheckerPage() {
     }
   }
 
-  /**
-   * Macht alle offenen "live"-Zeilen sofort fällig statt bis zu 24h auf die
-   * planmäßige Prüfung zu warten - sinnvoll direkt nach einem Bugfix am
-   * Matching (Zeilen, die vorher wiederholt erfolglos geprüft wurden,
-   * stecken sonst noch länger im täglichen Rhythmus fest).
-   */
   async function handleRecheckNow() {
     setRechecking(true);
     setError(null);
     setRecheckSummary(null);
 
     try {
-      const res = await fetch('/api/indexing-checker/recheck-now', { method: 'POST' });
+      const res = await fetch('/api/indexing-checker-gsc/recheck-now', { method: 'POST' });
       const data = await res.json();
 
       if (!res.ok) {
@@ -192,7 +193,7 @@ export default function IndexingCheckerPage() {
       STATUS_LABELS[r.status],
     ]);
 
-    await downloadXlsx('indexierungs-check.xlsx', [{ name: 'Ergebnisse', headers, rows: dataRows }]);
+    await downloadXlsx('indexierungs-check-search-console.xlsx', [{ name: 'Ergebnisse', headers, rows: dataRows }]);
   }
 
   const foundRows = rows.filter((r) => r.status === 'found' && r.delta_minutes != null);
@@ -203,7 +204,7 @@ export default function IndexingCheckerPage() {
     <main className="max-w-6xl mx-auto px-6 py-10">
       <AppNav />
       <div className="flex items-start justify-between gap-4 mb-1">
-        <h1 className="text-2xl font-bold">Google-Indexierungs-Checker (Serper)</h1>
+        <h1 className="text-2xl font-bold">Google-Indexierungs-Checker (Search Console)</h1>
         <button
           type="button"
           onClick={handleLogout}
@@ -213,10 +214,9 @@ export default function IndexingCheckerPage() {
         </button>
       </div>
       <p className="text-slate-400 mb-8">
-        Misst, wie lange es dauert, bis ein neu veröffentlichtes SEN-Video über Google auffindbar ist. T1 = realer
-        Publish-Zeitpunkt aus dem CMS, T2 = erster Google-Treffer für die URL (hier über Serper.dev geprüft). Es
-        läuft parallel eine zweite, unabhängige Variante über die offizielle Search Console API - siehe Tab
-        "Google-Indexierungs-Checker (Search Console)" oben.
+        Parallel-Version des Indexierungs-Checkers: identische Messung (T1 = Publish-Zeitpunkt aus dem CMS, T2 =
+        erster Google-Treffer), aber T2 läuft hier über die offizielle Search Console URL Inspection API statt über
+        Serper.dev - eigene, unabhängige Datenhaltung, zum direkten Vergleich mit dem Serper-basierten Checker.
       </p>
 
       <div className="mb-8 rounded border border-dashed border-slate-700 p-6 text-center">
@@ -229,7 +229,8 @@ export default function IndexingCheckerPage() {
         />
         <p className="mt-3 text-xs text-slate-500">
           Excel (.xlsx) mit einer Spalte "ID" (z. B. der Dashboard-Export "AssetListExport") oder einfach eine ID
-          pro Zeile in Spalte A.
+          pro Zeile in Spalte A. Dieselbe Datei wie beim Serper-basierten Checker kann hier separat hochgeladen
+          werden, um die Ergebnisse zu vergleichen.
         </p>
         <p className="mt-1 text-xs text-slate-500">
           Ein neuer Upload archiviert automatisch die aktuellen Ergebnisse (weiterhin einsehbar unter "Archiv"
@@ -255,7 +256,7 @@ export default function IndexingCheckerPage() {
             </p>
             <div className="flex gap-3">
               <a
-                href="/api/indexing-checker/last-upload"
+                href="/api/indexing-checker-gsc/last-upload"
                 className="text-sm text-slate-400 underline decoration-slate-600 hover:text-slate-200 hover:decoration-slate-300"
               >
                 Datei herunterladen
@@ -419,7 +420,7 @@ function ArchiveEntry({ archive }: { archive: ArchiveSummary }) {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/indexing-checker/archive/${archive.id}`, { cache: 'no-store' });
+      const res = await fetch(`/api/indexing-checker-gsc/archive/${archive.id}`, { cache: 'no-store' });
       const data = await res.json();
       setRows(data.checks ?? []);
     } finally {
