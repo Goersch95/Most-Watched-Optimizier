@@ -203,12 +203,21 @@ export function getArchiveById(id: string): ArchiveEntry | null {
   return load().archives.find((a) => a.id === id) ?? null;
 }
 
-export function markLive(id: string, confirmedAtIso: string, nextPollAtIso: string): void {
+export function markLive(id: string, confirmedAtIso: string, nextPollAtIso: string, canonicalUrl?: string): void {
   const row = load().checks[id];
   if (!row) return;
   row.status = 'live';
   row.t1_live_confirmed = confirmedAtIso;
   row.next_poll_at = nextPollAtIso;
+  if (canonicalUrl) row.url = canonicalUrl;
+  persist();
+}
+
+/** Für den Resync-Fall: URL nachträglich korrigieren, ohne den restlichen Status anzufassen. */
+export function updateUrl(id: string, url: string): void {
+  const row = load().checks[id];
+  if (!row) return;
+  row.url = url;
   persist();
 }
 

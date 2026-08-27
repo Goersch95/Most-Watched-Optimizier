@@ -170,7 +170,7 @@ export default function IndexingCheckerGscPage() {
       }
 
       setRecheckSummary(
-        `${data.reset} Zeile(n) sofort fällig gemacht · ${data.checked} geprüft, ${data.foundNow} neu gefunden.`
+        `${data.urlsResynced ?? 0} URL(s) aktualisiert · ${data.reset} Zeile(n) sofort fällig gemacht · ${data.checked} geprüft, ${data.foundNow} neu gefunden.`
       );
       await loadResults();
     } catch {

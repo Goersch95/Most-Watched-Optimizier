@@ -1,6 +1,6 @@
 import { JWT } from 'google-auth-library';
 import { NextRequest, NextResponse } from 'next/server';
-import { buildServusTvUrl } from '@/lib/indexing-checker/servustv';
+import { buildServusTvUrl, checkLiveAndResolveCanonical } from '@/lib/indexing-checker/servustv';
 import { normalizePrivateKey } from '@/lib/indexing-checker-gsc/search-console-client';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +32,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const url = buildServusTvUrl(id);
+  const bareUrl = buildServusTvUrl(id);
+  // ServusTV liefert dieselbe Seite ohne Redirect sowohl unter der reinen
+  // ID-URL als auch einer Slug-URL aus, aber nur die per <link rel="canonical">
+  // deklarierte Slug-URL wird von Google tatsächlich indexiert - die
+  // Inspection muss deshalb gegen die aufgelöste URL laufen, nicht die rohe.
+  const { live, canonicalUrl } = await checkLiveAndResolveCanonical(bareUrl);
+  const url = canonicalUrl ?? bareUrl;
+
   const client = new JWT({
     email,
     key: normalizePrivateKey(rawKey),
@@ -47,6 +54,9 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({
+      bareUrl,
+      live,
+      canonicalUrl,
       requestedUrl: url,
       searchConsoleHttpStatus: res.status,
       response: res.data,
@@ -55,6 +65,9 @@ export async function GET(req: NextRequest) {
     const anyErr = err as { response?: { status?: number; data?: unknown }; message?: string };
     return NextResponse.json(
       {
+        bareUrl,
+        live,
+        canonicalUrl,
         requestedUrl: url,
         searchConsoleHttpStatus: anyErr.response?.status ?? null,
         response: anyErr.response?.data ?? null,

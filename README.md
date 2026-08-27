@@ -61,6 +61,19 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   Kostet keine Google-Quota, nur einen zusätzlichen CMS-Fetch pro offener ID.
 - **Live-Check**: eigener HTTP-Request auf die URL (kein Google-Call, kostet nichts),
   bestätigt dass die Seite wirklich online ist, bevor Google-Polling startet.
+- **Kanonische URL statt reiner ID-URL** (`checkLiveAndResolveCanonical` in
+  `lib/indexing-checker/servustv.ts`): ServusTV liefert dieselbe Seite ohne
+  Redirect sowohl unter der reinen ID-URL (`.../page/<ID>`) als auch einer
+  sprechenden Slug-URL (`.../page/<ID>/servus-nachrichten-in-90-sekunden-...`)
+  aus - live verifiziert, kein Redirect zwischen beiden. Google indexiert aber
+  nur die per `<link rel="canonical">` im HTML deklarierte Slug-Variante
+  (ebenfalls live verifiziert). Der Live-Check liest deshalb zusätzlich diesen
+  Canonical-Tag aus derselben Response aus (kein zweiter Request nötig) und
+  speichert die aufgelöste URL statt der rohen ID-URL - sonst würde
+  insbesondere die Search-Console-Variante (siehe unten, exaktes URL-Matching)
+  die Seite fälschlich als "unknown"/nicht indexiert melden, obwohl sie unter
+  der Slug-URL längst indexiert ist. Für den Serper-Checker war das bisher
+  unauffällig, da dessen `site:`-Suche unscharf über den Pfad matcht.
 - **T2 (Indexiert)**: Polling gegen **Serper.dev** (Drittanbieter-SERP-API auf Basis
   echter Google-Suchergebnisse) - keine Search-Console-Abfrage (kein Zugriff auf die
   ServusTV-On-Property) und kein Scraping (Blocking-Risiko würde die Messung entwerten).
@@ -76,13 +89,16 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   Search" wurde geprüft und verworfen: durchsucht nicht den öffentlichen
   Google-Webindex, sondern nur selbst angegebene Inhalte - hätte nie widergespiegelt,
   ob eine Seite tatsächlich für normale Nutzer in der echten Google-Suche auftaucht.
-- **"Offene sofort neu prüfen"**: Button in der UI, setzt bei allen noch nicht
-  gefundenen "live"-Zeilen den nächsten Prüfzeitpunkt auf "jetzt" zurück
-  (`resetLiveRowsToDueNow` in `db.ts`) und stößt direkt einen Polling-Durchlauf an
-  (`/api/indexing-checker/recheck-now`), statt bis zu 24h auf den planmäßigen Check zu
-  warten. Wichtig nach einem Bugfix am Matching (z. B. der `site:`-Fix oben): Zeilen,
-  die vorher wiederholt erfolglos geprüft wurden, stecken sonst noch bis zu einen Tag
-  im "täglich"-Rhythmus fest, obwohl die zugrundeliegende Seite längst indexiert wäre.
+- **"Offene sofort neu prüfen"**: Button in der UI, löst zuerst `resyncLiveRowUrls()`
+  aus (löst für alle "live"-Zeilen die kanonische URL neu auf, siehe oben - wichtig
+  für Zeilen, die vor dem Canonical-Fix bereits mit der rohen ID-URL live gingen),
+  setzt danach bei allen noch nicht gefundenen "live"-Zeilen den nächsten
+  Prüfzeitpunkt auf "jetzt" zurück (`resetLiveRowsToDueNow` in `db.ts`) und stößt
+  direkt einen Polling-Durchlauf an (`/api/indexing-checker/recheck-now`), statt bis
+  zu 24h auf den planmäßigen Check zu warten. Wichtig nach einem Bugfix am Matching
+  (z. B. der `site:`-Fix oben): Zeilen, die vorher wiederholt erfolglos geprüft
+  wurden, stecken sonst noch bis zu einen Tag im "täglich"-Rhythmus fest, obwohl die
+  zugrundeliegende Seite längst indexiert wäre.
 - **Persistenz**: einfache JSON-Datei (`lib/indexing-checker/db.ts`), Pfad über
   `INDEXING_DB_PATH` konfigurierbar (Default: `data/indexing-checker.json`). Bewusst
   keine SQLite/natives Node-Modul - hat in Docker (Alpine wie Debian) zu Laufzeit-

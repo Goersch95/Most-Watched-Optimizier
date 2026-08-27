@@ -1,5 +1,5 @@
 import { classifySlot } from '../indexing-checker/schedule';
-import { buildServusTvUrl, fetchPublishDate } from '../indexing-checker/servustv';
+import { buildServusTvUrl, checkLiveAndResolveCanonical, fetchPublishDate } from '../indexing-checker/servustv';
 import * as repo from './db';
 import { isUrlIndexedByGoogleSearchConsole } from './search-console-client';
 
@@ -66,13 +66,28 @@ function addMinutesIso(iso: string, minutes: number): string {
   return new Date(new Date(iso).getTime() + minutes * 60_000).toISOString();
 }
 
-async function isUrlLive(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' });
-    return res.ok;
-  } catch {
-    return false;
+/**
+ * Löst für alle bereits "live" markierten Zeilen die kanonische URL neu auf
+ * (siehe checkLiveAndResolveCanonical in lib/indexing-checker/servustv.ts) -
+ * für die Search-Console-API besonders wichtig, da sie (anders als Serpers
+ * unscharfe `site:`-Suche) exaktes URL-Matching macht und die reine ID-URL
+ * ohne Slug fälschlich als "unknown" meldet. Wird vom "Offene sofort neu
+ * prüfen"-Button mitausgelöst. Gibt die Anzahl der tatsächlich geänderten
+ * URLs zurück.
+ */
+export async function resyncLiveRowUrls(): Promise<number> {
+  const liveRows = repo.getAllChecks().filter((r) => r.status === 'live');
+  let updated = 0;
+
+  for (const row of liveRows) {
+    const { canonicalUrl } = await checkLiveAndResolveCanonical(row.url);
+    if (canonicalUrl && canonicalUrl !== row.url) {
+      repo.updateUrl(row.id, canonicalUrl);
+      updated += 1;
+    }
   }
+
+  return updated;
 }
 
 export async function runPollingPass(): Promise<{
@@ -93,9 +108,9 @@ export async function runPollingPass(): Promise<{
 
   for (const row of due) {
     if (row.status === 'pending') {
-      const live = await isUrlLive(row.url);
+      const { live, canonicalUrl } = await checkLiveAndResolveCanonical(row.url);
       if (live) {
-        repo.markLive(row.id, nowIso, nowIso);
+        repo.markLive(row.id, nowIso, nowIso, canonicalUrl ?? undefined);
       } else {
         repo.reschedule(row.id, addMinutesIso(nowIso, LIVE_CHECK_RETRY_MINUTES), row.poll_count);
       }
