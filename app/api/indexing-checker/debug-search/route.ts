@@ -3,26 +3,32 @@ import { buildServusTvUrl, checkLiveAndResolveCanonical } from '@/lib/indexing-c
 
 export const dynamic = 'force-dynamic';
 
-async function serperSiteQuery(apiKey: string, url: string) {
+async function serperQuery(apiKey: string, q: string) {
   const res = await fetch('https://google.serper.dev/search', {
     method: 'POST',
     headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ q: `site:${url}` }),
+    body: JSON.stringify({ q }),
     cache: 'no-store',
   });
   const data = await res.json();
-  return { httpStatus: res.status, response: data };
+  return { q, httpStatus: res.status, response: data };
 }
 
 /**
  * Diagnose-Endpoint, um die rohe Antwort der Serper.dev-API für eine ID zu
- * sehen (kein Boolean wie isUrlIndexedByGoogle). Fragt bewusst BEIDE
- * URL-Varianten ab - die rohe ID-URL und die per <link rel="canonical">
- * aufgelöste Slug-URL (dieselbe, die das echte Polling seit dem
- * Canonical-Fix tatsächlich verwendet) - um zu prüfen, ob Googles
- * `site:`-Operator bei der langen, spezifischen Slug-URL schlechter matcht
- * als bei der kurzen ID-URL. Geschützt durch die normale
- * Session-Cookie-Prüfung wie jede andere Nicht-Poll-Route.
+ * sehen (kein Boolean wie isUrlIndexedByGoogle). Fragt bewusst DREI
+ * Query-Varianten ab, um Googles `site:`-Verhalten für diese eine ID zu
+ * vergleichen:
+ * 1. `site:` + rohe ID-URL (die alte Query, vor dem Canonical-Fix)
+ * 2. `site:` + aufgelöste Slug-URL (die aktuelle Produktions-Query)
+ * 3. `site:servustv.com inurl:<ID>` (nur Domain-Einschränkung statt
+ *    vollständigem Pfad, testweise - Verdacht: eine sehr spezifische
+ *    Pfad-Einschränkung bei `site:` liefert teils unvollständigere
+ *    Ergebnisse als eine breitere Domain-Einschränkung + `inurl:`-Filter)
+ *
+ * Rein diagnostisch, ändert nichts an der echten Prüf-Logik
+ * (isUrlIndexedByGoogle). Geschützt durch die normale Session-Cookie-Prüfung
+ * wie jede andere Nicht-Poll-Route.
  */
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
@@ -44,8 +50,9 @@ export async function GET(req: NextRequest) {
   const { live, canonicalUrl } = await checkLiveAndResolveCanonical(bareUrl);
 
   try {
-    const bareResult = await serperSiteQuery(apiKey, bareUrl);
-    const canonicalResult = canonicalUrl ? await serperSiteQuery(apiKey, canonicalUrl) : null;
+    const bareResult = await serperQuery(apiKey, `site:${bareUrl}`);
+    const canonicalResult = canonicalUrl ? await serperQuery(apiKey, `site:${canonicalUrl}`) : null;
+    const domainInurlResult = await serperQuery(apiKey, `site:servustv.com inurl:${id}`);
 
     return NextResponse.json({
       bareUrl,
@@ -53,6 +60,7 @@ export async function GET(req: NextRequest) {
       canonicalUrl,
       bareUrlQuery: bareResult,
       canonicalUrlQuery: canonicalResult,
+      domainInurlQuery: domainInurlResult,
     });
   } catch (err) {
     return NextResponse.json(
