@@ -125,6 +125,7 @@ export function upsertCheck(row: {
     poll_count: existing?.poll_count ?? 0,
     next_poll_at: existing ? existing.next_poll_at : row.nextPollAt,
     created_at: existing?.created_at ?? new Date().toISOString(),
+    inspection_link: existing?.inspection_link ?? null,
   };
 
   persist();

@@ -112,6 +112,7 @@ export function upsertCheck(row: {
     poll_count: existing?.poll_count ?? 0,
     next_poll_at: existing ? existing.next_poll_at : row.nextPollAt,
     created_at: existing?.created_at ?? new Date().toISOString(),
+    inspection_link: existing?.inspection_link ?? null,
   };
 
   persist();
@@ -208,6 +209,19 @@ export function markFound(id: string, foundAtIso: string, deltaMinutes: number):
   row.status = 'found';
   row.t2_indexed = foundAtIso;
   row.delta_minutes = deltaMinutes;
+  persist();
+}
+
+/**
+ * Hält den von Google bei jeder Inspection mitgelieferten Direktlink zur
+ * Search-Console-Ansicht aktuell - auch für noch nicht gefundene Zeilen,
+ * damit man von dort aus die Indexierung manuell beantragen kann, ohne die
+ * URL erst selbst suchen zu müssen.
+ */
+export function setInspectionLink(id: string, link: string | null): void {
+  const row = load().checks[id];
+  if (!row || !link) return;
+  row.inspection_link = link;
   persist();
 }
 

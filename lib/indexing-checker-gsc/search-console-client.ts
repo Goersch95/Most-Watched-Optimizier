@@ -42,6 +42,23 @@ function getClient(): JWT | null {
   return cachedClient;
 }
 
+export type IndexingCheckResult = {
+  indexed: boolean;
+  /**
+   * Der von Google in jeder Inspection-Antwort mitgelieferte Direktlink zur
+   * URL-Inspection-Ansicht in der echten Search-Console-Oberfläche
+   * (`inspectionResult.inspectionResultLink`) - enthält eine von Google
+   * intern vergebene opake ID, die sich nicht selbst konstruieren lässt.
+   * Live verifiziert (echte API-Antwort enthielt genau dieses Feld). Damit
+   * lässt sich der "Indexierung beantragen"-Schritt zwar nicht automatisch
+   * auslösen (siehe README - offiziell nur für JobPosting/BroadcastEvent
+   * über die separate Indexing API vorgesehen), aber immerhin der manuelle
+   * Klick direkt aus dem Tool heraus vorbereiten, ohne die URL erst in der
+   * Search Console suchen zu müssen.
+   */
+  inspectionLink: string | null;
+};
+
 /**
  * Auffindbarkeits-Check über die offizielle Search Console URL Inspection
  * API (https://developers.google.com/webmaster-tools/v1/urlInspection.index/inspect) -
@@ -51,20 +68,19 @@ function getClient(): JWT | null {
  * Search-Console-Property und einen als Nutzer freigeschalteten
  * Service-Account voraus (GSC_SERVICE_ACCOUNT_EMAIL/_PRIVATE_KEY, GSC_SITE_URL).
  *
- * Noch nicht live gegen die echte API verifiziert (Response-Form laut
- * offizieller Google-Doku implementiert, siehe README) - läuft parallel zum
- * bewährten Serper-Checker, damit sich beide Ergebnisse vergleichen lassen,
- * bevor man sich auf einen davon festlegt.
+ * Live gegen die echte API verifiziert (siehe README) - läuft parallel zum
+ * bewährten Serper-Checker, damit sich beide Ergebnisse vergleichen lassen.
  */
-export async function isUrlIndexedByGoogleSearchConsole(_assetId: string, url: string): Promise<boolean> {
+export async function isUrlIndexedByGoogleSearchConsole(_assetId: string, url: string): Promise<IndexingCheckResult> {
   const client = getClient();
   const siteUrl = process.env.GSC_SITE_URL;
-  if (!client || !siteUrl) return false;
+  if (!client || !siteUrl) return { indexed: false, inspectionLink: null };
 
   try {
     const res = await client.request<{
       inspectionResult?: {
         indexStatusResult?: { verdict?: string };
+        inspectionResultLink?: string;
       };
     }>({
       url: INSPECT_URL,
@@ -73,8 +89,9 @@ export async function isUrlIndexedByGoogleSearchConsole(_assetId: string, url: s
     });
 
     const verdict = res.data?.inspectionResult?.indexStatusResult?.verdict;
-    return verdict === 'PASS';
+    const inspectionLink = res.data?.inspectionResult?.inspectionResultLink ?? null;
+    return { indexed: verdict === 'PASS', inspectionLink };
   } catch {
-    return false;
+    return { indexed: false, inspectionLink: null };
   }
 }

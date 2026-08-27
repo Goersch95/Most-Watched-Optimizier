@@ -153,11 +153,9 @@ eine der beiden Varianten abgeschaltet wird.
   Sicherheits-Tageslimit (`DAILY_GSC_QUOTA` in `pipeline.ts`) schützt nur vor
   einem versehentlichen Burst, ist aber kein Kosten-Deckel wie beim
   Serper-Checker.
-  **Noch nicht live gegen die echte API verifiziert** (Implementierung nach
-  offizieller Google-Doku, siehe `search-console-client.ts`) - der
-  Debug-Endpoint (`/api/indexing-checker-gsc/debug-search?id=...`) zeigt die
-  rohe API-Antwort für eine ID, genau dafür gedacht, das nach dem ersten
-  echten Test zu bestätigen bzw. nachzujustieren.
+  Live gegen die echte API verifiziert. Der Debug-Endpoint
+  (`/api/indexing-checker-gsc/debug-search?id=...`) zeigt weiterhin die rohe
+  API-Antwort für eine einzelne ID, hilfreich zur Fehlersuche.
 - **Setup**: Ein Service-Account in Google Cloud anlegen (im selben Projekt wie
   Serper/CMS oder einem neuen), **Search Console API** aktivieren, den
   Service-Account-JSON-Key erzeugen. Dann die Service-Account-E-Mail-Adresse in
@@ -167,14 +165,21 @@ eine der beiden Varianten abgeschaltet wird.
   Key (aus dem JSON-Key, `\n` bleiben als literale Zeichenfolge stehen) in
   `GSC_SERVICE_ACCOUNT_EMAIL`/`GSC_SERVICE_ACCOUNT_PRIVATE_KEY` eintragen, die
   geprüfte Property in `GSC_SITE_URL` (z. B. `sc-domain:servustv.com`).
-- **"Indexierung beantragen" bleibt manuell**: Die Search Console bietet für
-  normale Inhalte keine API, um den "Indexierung beantragen"-Button
-  programmatisch auszulösen - das ist offiziell nur für `JobPosting`-/
-  `BroadcastEvent`-strukturierte Daten über die separate **Indexing API**
-  vorgesehen. Ohne so ein Markup auf den Video-Seiten bleibt der Klick in der
-  echten Search-Console-Oberfläche nötig; Teammitglieder ohne eigenen
-  Search-Console-Zugang brauchen dafür mindestens die Rolle "Eingeschränkt" auf
-  der Property.
+- **"Indexierung beantragen" bleibt manuell, aber mit direktem Link**: Die
+  Search Console bietet für normale Inhalte keine API, um den "Indexierung
+  beantragen"-Button programmatisch auszulösen - das ist offiziell nur für
+  `JobPosting`-/`BroadcastEvent`-strukturierte Daten über die separate
+  **Indexing API** vorgesehen. Ohne so ein Markup auf den Video-Seiten bleibt
+  der Klick in der echten Search-Console-Oberfläche nötig; Teammitglieder ohne
+  eigenen Search-Console-Zugang brauchen dafür mindestens die Rolle
+  "Eingeschränkt" auf der Property. Um diesen manuellen Schritt so
+  reibungslos wie möglich zu machen, liefert jede URL-Inspection-Antwort
+  Googles eigenen `inspectionResultLink` mit - ein von Google generierter
+  Deep-Link direkt zur Inspection-Ansicht der geprüften URL in der echten
+  Search Console (inkl. dortigem "Indexierung beantragen"-Button). Dieser
+  Link wird pro Zeile in `inspection_link` gespeichert (auch schon vor dem
+  "Indexiert"-Status) und in der Ergebnistabelle als Spalte "Search Console"
+  mit Button "Prüfen / Indexierung beantragen" angezeigt.
 - **Eigener Scheduler**: analog zum Serper-Checker ein zweiter Coolify
   Scheduled Task gegen `/api/indexing-checker-gsc/poll` mit
   `INDEXING_GSC_POLL_SECRET` als Bearer-Token.

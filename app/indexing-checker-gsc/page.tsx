@@ -21,6 +21,7 @@ type IndexingCheckRow = {
   poll_count: number;
   next_poll_at: string;
   created_at: string;
+  inspection_link: string | null;
 };
 
 const STATUS_LABELS: Record<IndexingStatus, string> = {
@@ -361,6 +362,7 @@ function ResultsTable({ rows }: { rows: IndexingCheckRow[] }) {
             <th className="px-3 py-2 text-left font-medium">T2 (Indexiert)</th>
             <th className="px-3 py-2 text-right font-medium">Delta</th>
             <th className="px-3 py-2 text-left font-medium">Status</th>
+            <th className="px-3 py-2 text-left font-medium">Search Console</th>
           </tr>
         </thead>
         <tbody>
@@ -387,6 +389,20 @@ function ResultsTable({ rows }: { rows: IndexingCheckRow[] }) {
                 <span className={`rounded px-2 py-1 text-xs ${STATUS_STYLES[row.status]}`}>
                   {STATUS_LABELS[row.status]}
                 </span>
+              </td>
+              <td className="px-3 py-2">
+                {row.inspection_link ? (
+                  <a
+                    href={row.inspection_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                  >
+                    Prüfen / Indexierung beantragen
+                  </a>
+                ) : (
+                  '–'
+                )}
               </td>
             </tr>
           ))}

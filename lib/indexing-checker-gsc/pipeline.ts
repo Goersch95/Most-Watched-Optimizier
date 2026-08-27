@@ -126,11 +126,12 @@ export async function runPollingPass(): Promise<{
         continue;
       }
 
-      const found = await isUrlIndexedByGoogleSearchConsole(row.id, row.url);
+      const { indexed, inspectionLink } = await isUrlIndexedByGoogleSearchConsole(row.id, row.url);
       repo.incrementQuota(today);
       quotaUsed += 1;
+      repo.setInspectionLink(row.id, inspectionLink);
 
-      if (found) {
+      if (indexed) {
         const deltaMinutes = (new Date(nowIso).getTime() - new Date(row.t1_publish).getTime()) / 60_000;
         repo.markFound(row.id, nowIso, deltaMinutes);
         foundNow += 1;
