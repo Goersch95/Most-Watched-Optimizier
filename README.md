@@ -90,9 +90,12 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   Google-Webindex, sondern nur selbst angegebene Inhalte - hätte nie widergespiegelt,
   ob eine Seite tatsächlich für normale Nutzer in der echten Google-Suche auftaucht.
 - **"Offene sofort neu prüfen"**: Button in der UI, löst zuerst `resyncLiveRowUrls()`
-  aus (löst für alle "live"-Zeilen die kanonische URL neu auf, siehe oben - wichtig
-  für Zeilen, die vor dem Canonical-Fix bereits mit der rohen ID-URL live gingen),
-  setzt danach bei allen noch nicht gefundenen "live"-Zeilen den nächsten
+  aus (löst für alle "live"- **und "found"**-Zeilen die kanonische URL neu auf, siehe
+  oben - wichtig für Zeilen, die vor dem Canonical-Fix bereits mit der rohen ID-URL
+  live gingen bzw. schon gefunden wurden; bei "found"-Zeilen wird nur die
+  URL-Anzeige korrigiert, kein erneuter Indexierungs-Check - relevant für den
+  direkten Vergleich mit dem parallel laufenden anderen Checker, der dieselbe URL
+  prüfen soll), setzt danach bei allen noch nicht gefundenen "live"-Zeilen den nächsten
   Prüfzeitpunkt auf "jetzt" zurück (`resetLiveRowsToDueNow` in `db.ts`) und stößt
   direkt einen Polling-Durchlauf an (`/api/indexing-checker/recheck-now`), statt bis
   zu 24h auf den planmäßigen Check zu warten. Wichtig nach einem Bugfix am Matching

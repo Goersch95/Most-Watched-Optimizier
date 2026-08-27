@@ -74,20 +74,23 @@ function addMinutesIso(iso: string, minutes: number): string {
 }
 
 /**
- * Löst für alle bereits "live" markierten Zeilen die kanonische URL neu auf
- * (siehe checkLiveAndResolveCanonical - ServusTV liefert dieselbe Seite ohne
- * Redirect sowohl unter der reinen ID-URL als auch einer Slug-URL aus,
- * Google indexiert aber nur die per <link rel="canonical"> deklarierte
+ * Löst für alle bereits "live" ODER "found" markierten Zeilen die kanonische
+ * URL neu auf (siehe checkLiveAndResolveCanonical - ServusTV liefert dieselbe
+ * Seite ohne Redirect sowohl unter der reinen ID-URL als auch einer Slug-URL
+ * aus, Google indexiert aber nur die per <link rel="canonical"> deklarierte
  * Slug-URL). Wird vom "Offene sofort neu prüfen"-Button mitausgelöst, damit
- * Zeilen, die vor diesem Fix bereits mit der falschen URL live gingen,
- * nicht dauerhaft falsch geprüft werden. Gibt die Anzahl der tatsächlich
- * geänderten URLs zurück.
+ * Zeilen, die vor diesem Fix bereits mit der falschen URL live gingen bzw.
+ * schon als gefunden markiert wurden, nicht dauerhaft die falsche URL
+ * anzeigen - wichtig für den direkten Vergleich mit dem parallel laufenden
+ * anderen Checker, der dieselbe URL prüfen soll. "found"-Zeilen werden nur
+ * in der URL-Anzeige korrigiert, nicht erneut auf Indexierung geprüft (schon
+ * abgeschlossen). Gibt die Anzahl der tatsächlich geänderten URLs zurück.
  */
 export async function resyncLiveRowUrls(): Promise<number> {
-  const liveRows = repo.getAllChecks().filter((r) => r.status === 'live');
+  const rows = repo.getAllChecks().filter((r) => r.status === 'live' || r.status === 'found');
   let updated = 0;
 
-  for (const row of liveRows) {
+  for (const row of rows) {
     const { canonicalUrl } = await checkLiveAndResolveCanonical(row.url);
     if (canonicalUrl && canonicalUrl !== row.url) {
       repo.updateUrl(row.id, canonicalUrl);

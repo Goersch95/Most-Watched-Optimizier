@@ -67,19 +67,22 @@ function addMinutesIso(iso: string, minutes: number): string {
 }
 
 /**
- * Löst für alle bereits "live" markierten Zeilen die kanonische URL neu auf
- * (siehe checkLiveAndResolveCanonical in lib/indexing-checker/servustv.ts) -
- * für die Search-Console-API besonders wichtig, da sie (anders als Serpers
- * unscharfe `site:`-Suche) exaktes URL-Matching macht und die reine ID-URL
- * ohne Slug fälschlich als "unknown" meldet. Wird vom "Offene sofort neu
+ * Löst für alle bereits "live" ODER "found" markierten Zeilen die kanonische
+ * URL neu auf (siehe checkLiveAndResolveCanonical in
+ * lib/indexing-checker/servustv.ts) - für die Search-Console-API besonders
+ * wichtig, da sie (anders als Serpers unscharfe `site:`-Suche) exaktes
+ * URL-Matching macht und die reine ID-URL ohne Slug fälschlich als "unknown"
+ * meldet. "found"-Zeilen werden nur in der URL-Anzeige korrigiert (wichtig
+ * für den direkten Vergleich mit dem parallel laufenden anderen Checker),
+ * nicht erneut auf Indexierung geprüft. Wird vom "Offene sofort neu
  * prüfen"-Button mitausgelöst. Gibt die Anzahl der tatsächlich geänderten
  * URLs zurück.
  */
 export async function resyncLiveRowUrls(): Promise<number> {
-  const liveRows = repo.getAllChecks().filter((r) => r.status === 'live');
+  const rows = repo.getAllChecks().filter((r) => r.status === 'live' || r.status === 'found');
   let updated = 0;
 
-  for (const row of liveRows) {
+  for (const row of rows) {
     const { canonicalUrl } = await checkLiveAndResolveCanonical(row.url);
     if (canonicalUrl && canonicalUrl !== row.url) {
       repo.updateUrl(row.id, canonicalUrl);
