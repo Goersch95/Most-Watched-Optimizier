@@ -67,6 +67,34 @@ function addMinutesIso(iso: string, minutes: number): string {
 }
 
 /**
+ * Führt einen einzelnen Search-Console-Check für eine "live" Zeile aus und
+ * verbucht das Ergebnis (Quota, inspection_link, gefunden/reschedule). Wird
+ * sowohl für bereits länger "live" Zeilen als auch direkt beim Sprung von
+ * "pending" auf "live" aufgerufen, damit der Inspection-Link (und damit der
+ * "Indexierung beantragen"-Button) schon im selben Poll-Durchlauf gesetzt
+ * wird, statt erst einen ganzen Poll-Zyklus später.
+ */
+async function checkAndRecordIndexing(
+  row: { id: string; url: string; t1_publish: string; poll_count: number },
+  nowIso: string,
+  today: string
+): Promise<boolean> {
+  const { indexed, inspectionLink } = await isUrlIndexedByGoogleSearchConsole(row.id, row.url);
+  repo.incrementQuota(today);
+  repo.setInspectionLink(row.id, inspectionLink);
+
+  if (indexed) {
+    const deltaMinutes = (new Date(nowIso).getTime() - new Date(row.t1_publish).getTime()) / 60_000;
+    repo.markFound(row.id, nowIso, deltaMinutes);
+  } else {
+    const nextPollCount = row.poll_count + 1;
+    repo.reschedule(row.id, addMinutesIso(nowIso, pollDelayMinutes(nextPollCount)), nextPollCount);
+  }
+
+  return indexed;
+}
+
+/**
  * Löst für alle bereits "live" ODER "found" markierten Zeilen die kanonische
  * URL neu auf (siehe checkLiveAndResolveCanonical in
  * lib/indexing-checker/servustv.ts) - für die Search-Console-API besonders
@@ -112,11 +140,21 @@ export async function runPollingPass(): Promise<{
   for (const row of due) {
     if (row.status === 'pending') {
       const { live, canonicalUrl } = await checkLiveAndResolveCanonical(row.url);
-      if (live) {
-        repo.markLive(row.id, nowIso, nowIso, canonicalUrl ?? undefined);
-      } else {
+      if (!live) {
         repo.reschedule(row.id, addMinutesIso(nowIso, LIVE_CHECK_RETRY_MINUTES), row.poll_count);
+        continue;
       }
+
+      const url = canonicalUrl ?? row.url;
+      repo.markLive(row.id, nowIso, nowIso, canonicalUrl ?? undefined);
+
+      if (quotaUsed >= DAILY_GSC_QUOTA) {
+        continue;
+      }
+
+      quotaUsed += 1;
+      const indexed = await checkAndRecordIndexing({ ...row, url }, nowIso, today);
+      if (indexed) foundNow += 1;
       continue;
     }
 
@@ -126,19 +164,9 @@ export async function runPollingPass(): Promise<{
         continue;
       }
 
-      const { indexed, inspectionLink } = await isUrlIndexedByGoogleSearchConsole(row.id, row.url);
-      repo.incrementQuota(today);
       quotaUsed += 1;
-      repo.setInspectionLink(row.id, inspectionLink);
-
-      if (indexed) {
-        const deltaMinutes = (new Date(nowIso).getTime() - new Date(row.t1_publish).getTime()) / 60_000;
-        repo.markFound(row.id, nowIso, deltaMinutes);
-        foundNow += 1;
-      } else {
-        const nextPollCount = row.poll_count + 1;
-        repo.reschedule(row.id, addMinutesIso(nowIso, pollDelayMinutes(nextPollCount)), nextPollCount);
-      }
+      const indexed = await checkAndRecordIndexing(row, nowIso, today);
+      if (indexed) foundNow += 1;
     }
   }
 
