@@ -594,20 +594,29 @@ function PollRunHistorySection({ history }: { history: LastPollRun[] }) {
           <thead className="sticky top-0 bg-slate-950 text-slate-400">
             <tr>
               <th className="px-3 py-2 text-left font-medium">Zeitpunkt</th>
-              <th className="px-3 py-2 text-right font-medium">Geprüft</th>
-              <th className="px-3 py-2 text-right font-medium">Neu gefunden</th>
-              <th className="px-3 py-2 text-right font-medium">Quota</th>
+              <th className="px-3 py-2 text-right font-medium">Neu aufgenommen</th>
+              <th className="px-3 py-2 text-right font-medium" title="Echte Search-Console-Anfragen in diesem Lauf">
+                SC-Anfragen (Lauf)
+              </th>
+              <th className="px-3 py-2 text-right font-medium">Neu indexiert</th>
+              <th className="px-3 py-2 text-right font-medium">Quota (heute gesamt)</th>
             </tr>
           </thead>
           <tbody>
-            {history.map((run, i) => (
-              <tr key={run.at + i} className="border-t border-slate-800">
-                <td className="px-3 py-2">{formatViennaDateTime(run.at)} Uhr</td>
-                <td className="px-3 py-2 text-right tabular-nums">{run.checked}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{run.foundNow}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-500">{run.quotaUsed}</td>
-              </tr>
-            ))}
+            {history.map((run, i) => {
+              const previousQuota = history[i + 1]?.quotaUsed ?? 0;
+              const requestsThisRun = Math.max(0, run.quotaUsed - previousQuota);
+
+              return (
+                <tr key={run.at + i} className="border-t border-slate-800">
+                  <td className="px-3 py-2">{formatViennaDateTime(run.at)} Uhr</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{run.pendingIngested}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{requestsThisRun}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{run.foundNow}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-500">{run.quotaUsed}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
