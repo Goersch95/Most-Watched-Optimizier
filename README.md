@@ -180,6 +180,21 @@ eine der beiden Varianten abgeschaltet wird.
   Link wird pro Zeile in `inspection_link` gespeichert (auch schon vor dem
   "Indexiert"-Status) und in der Ergebnistabelle als Spalte "Search Console"
   mit Button "Prüfen / Indexierung beantragen" angezeigt.
+- **Archivierte Zeilen: immer live nachprüfen statt gespeicherten Link zu
+  öffnen**: Archivierte Tracking-Runden werden nie automatisch
+  weiterverfolgt - ihr gespeicherter `inspection_link` kann also veraltet
+  sein und einen längst überholten Zustand zeigen (reproduzierter Fall: alte
+  Runde zeigte "URL is not on Google", obwohl dieselbe ID in einer neu
+  hochgeladenen Runde inzwischen indexiert war - zwei unterschiedliche,
+  beide zum jeweiligen Zeitpunkt korrekte Snapshots, keine Cache-Verwechslung).
+  Für archivierte Zeilen (Status "live" oder "found") ersetzt daher ein
+  Button "Jetzt prüfen & öffnen" den einfachen Link: Klick löst einen echten,
+  frischen Search-Console-Call aus (`POST
+  /api/indexing-checker-gsc/archive/[id]/recheck`), aktualisiert die
+  archivierte Zeile in place (Status springt auf "Indexiert", falls
+  inzwischen soweit) und öffnet erst danach den jetzt aktuellen Link in einem
+  neuen Tab. Passiert ausschließlich auf expliziten Klick, nie im
+  Hintergrund/automatisch.
 - **Eigener Scheduler**: analog zum Serper-Checker ein zweiter Coolify
   Scheduled Task gegen `/api/indexing-checker-gsc/poll` mit
   `INDEXING_GSC_POLL_SECRET` als Bearer-Token.

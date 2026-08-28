@@ -379,7 +379,16 @@ export default function IndexingCheckerGscPage() {
   );
 }
 
-function ResultsTable({ rows }: { rows: IndexingCheckRow[] }) {
+function ResultsTable({
+  rows,
+  archiveId,
+  onRowUpdated,
+}: {
+  rows: IndexingCheckRow[];
+  /** Nur für Zeilen aus dem Archiv gesetzt - schaltet die Search-Console-Zelle von einem statischen Link auf den On-Demand-Neuprüfungs-Button um. */
+  archiveId?: string;
+  onRowUpdated?: (row: IndexingCheckRow) => void;
+}) {
   return (
     <div className="mb-8 overflow-x-auto rounded border border-slate-800">
       <table className="w-full text-sm">
@@ -421,7 +430,13 @@ function ResultsTable({ rows }: { rows: IndexingCheckRow[] }) {
                 </span>
               </td>
               <td className="px-3 py-2">
-                {row.inspection_link ? (
+                {archiveId ? (
+                  row.status === 'pending' ? (
+                    '–'
+                  ) : (
+                    <ArchivedSearchConsoleButton archiveId={archiveId} row={row} onUpdated={onRowUpdated} />
+                  )
+                ) : row.inspection_link ? (
                   <a
                     href={row.inspection_link}
                     target="_blank"
@@ -438,6 +453,69 @@ function ResultsTable({ rows }: { rows: IndexingCheckRow[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Archivierte Zeilen werden nie automatisch weiterverfolgt, ihr
+ * inspection_link kann daher beliebig alt/überholt sein. Statt den
+ * gespeicherten Link zu öffnen, macht dieser Button auf Klick einen echten,
+ * frischen Search-Console-Call, aktualisiert die archivierte Zeile in place
+ * (Status springt auf "Indexiert", falls inzwischen soweit) und öffnet erst
+ * danach den jetzt aktuellen Such-Console-Stand in einem neuen Tab.
+ */
+function ArchivedSearchConsoleButton({
+  archiveId,
+  row,
+  onUpdated,
+}: {
+  archiveId: string;
+  row: IndexingCheckRow;
+  onUpdated?: (row: IndexingCheckRow) => void;
+}) {
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleClick() {
+    setChecking(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/indexing-checker-gsc/archive/${archiveId}/recheck`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: row.id }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? 'Neu-Prüfen fehlgeschlagen.');
+        return;
+      }
+
+      onUpdated?.(data.row);
+      if (data.row.inspection_link) {
+        window.open(data.row.inspection_link, '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      setError('Neu-Prüfen fehlgeschlagen.');
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={checking}
+        className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {checking ? 'Prüft…' : 'Jetzt prüfen & öffnen'}
+      </button>
+      {error && <span className="text-xs text-red-400">{error}</span>}
     </div>
   );
 }
@@ -474,6 +552,10 @@ function ArchiveEntry({ archive }: { archive: ArchiveSummary }) {
     }
   }
 
+  function handleRowUpdated(updated: IndexingCheckRow) {
+    setRows((prev) => prev?.map((r) => (r.id === updated.id ? updated : r)) ?? prev);
+  }
+
   return (
     <details className="rounded border border-slate-800" onToggle={handleToggle}>
       <summary className="cursor-pointer px-4 py-3 text-sm text-slate-300">
@@ -484,7 +566,7 @@ function ArchiveEntry({ archive }: { archive: ArchiveSummary }) {
         {loading ? (
           <p className="text-sm text-slate-400">Lädt…</p>
         ) : rows && rows.length > 0 ? (
-          <ResultsTable rows={rows} />
+          <ResultsTable rows={rows} archiveId={archive.id} onRowUpdated={handleRowUpdated} />
         ) : (
           <p className="text-sm text-slate-400">Keine Einträge.</p>
         )}

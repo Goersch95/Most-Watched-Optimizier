@@ -121,6 +121,44 @@ export async function resyncLiveRowUrls(): Promise<number> {
   return updated;
 }
 
+/**
+ * Manuelle On-Demand-Neuprüfung einer einzelnen archivierten Zeile: macht
+ * einen echten, frischen Search-Console-Call statt den gespeicherten
+ * (ggf. veralteten) inspection_link wiederzuverwenden, und aktualisiert die
+ * archivierte Zeile in place, falls sich der Status auf "indexiert" ändert.
+ * Läuft NUR auf expliziten Klick (siehe app/api/.../archive/[id]/recheck),
+ * archivierte Runden werden sonst nie automatisch weiterverfolgt.
+ */
+export async function recheckArchivedRow(
+  archiveId: string,
+  rowId: string
+): Promise<{ ok: boolean; error?: string; indexed?: boolean; row?: repo.IndexingCheckRow }> {
+  const row = repo.getArchivedCheck(archiveId, rowId);
+  if (!row) {
+    return { ok: false, error: 'Archivierte Zeile nicht gefunden.' };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (repo.getTodayQuotaUsed(today) >= DAILY_GSC_QUOTA) {
+    return { ok: false, error: 'Tages-Sicherheitslimit für Search-Console-Anfragen erreicht - bitte später erneut versuchen.' };
+  }
+
+  const { indexed, inspectionLink } = await isUrlIndexedByGoogleSearchConsole(row.id, row.url);
+  repo.incrementQuota(today);
+
+  const nowIso = new Date().toISOString();
+  const patch: Parameters<typeof repo.updateArchivedCheck>[2] = { inspection_link: inspectionLink };
+
+  if (indexed && row.status !== 'found') {
+    patch.status = 'found';
+    patch.t2_indexed = nowIso;
+    patch.delta_minutes = (new Date(nowIso).getTime() - new Date(row.t1_publish).getTime()) / 60_000;
+  }
+
+  const updated = repo.updateArchivedCheck(archiveId, rowId, patch);
+  return { ok: true, indexed, row: updated ?? undefined };
+}
+
 export async function runPollingPass(): Promise<{
   checked: number;
   foundNow: number;

@@ -188,6 +188,33 @@ export function getArchiveById(id: string): ArchiveEntry | null {
   return load().archives.find((a) => a.id === id) ?? null;
 }
 
+export function getArchivedCheck(archiveId: string, rowId: string): IndexingCheckRow | null {
+  const archive = load().archives.find((a) => a.id === archiveId);
+  return archive?.checks.find((r) => r.id === rowId) ?? null;
+}
+
+/**
+ * Aktualisiert eine einzelne Zeile innerhalb eines Archiv-Eintrags in place -
+ * für die manuelle On-Demand-Neuprüfung archivierter Zeilen (siehe
+ * recheckArchivedRow in pipeline.ts). Archivierte Runden werden sonst nie
+ * automatisch weiterverfolgt; das hier ist bewusst der einzige Weg, wie sich
+ * eine archivierte Zeile noch ändern kann, und passiert nur auf expliziten
+ * Klick, nie im Hintergrund.
+ */
+export function updateArchivedCheck(
+  archiveId: string,
+  rowId: string,
+  patch: Partial<Pick<IndexingCheckRow, 'inspection_link' | 'status' | 't2_indexed' | 'delta_minutes'>>
+): IndexingCheckRow | null {
+  const s = load();
+  const archive = s.archives.find((a) => a.id === archiveId);
+  const row = archive?.checks.find((r) => r.id === rowId);
+  if (!row) return null;
+  Object.assign(row, patch);
+  persist();
+  return row;
+}
+
 export function markLive(id: string, confirmedAtIso: string, nextPollAtIso: string, canonicalUrl?: string): void {
   const row = load().checks[id];
   if (!row) return;
