@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getAllChecks, getArchives, getLastPollRun, getLastUpload, getPendingIds } from '@/lib/indexing-checker-gsc/db';
+import {
+  getAllChecks,
+  getArchives,
+  getLastPollRun,
+  getLastUpload,
+  getPendingIds,
+  getPollRunHistory,
+} from '@/lib/indexing-checker-gsc/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +15,7 @@ export async function GET() {
     checks: getAllChecks(),
     lastUpload: getLastUpload(),
     lastPollRun: getLastPollRun(),
+    pollRunHistory: getPollRunHistory(),
     pendingIds: getPendingIds(),
     archives: getArchives(),
   });

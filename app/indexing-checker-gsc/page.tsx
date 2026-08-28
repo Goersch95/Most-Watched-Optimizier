@@ -60,6 +60,18 @@ type ArchiveSummary = {
 };
 
 /**
+ * Der Coolify Scheduled Task feuert alle 20 Minuten - deutlich darüber (mit
+ * Puffer für einen einzelnen langsamen/verspäteten Lauf) gilt der letzte Lauf
+ * als überfällig und es wird eine Warnung angezeigt, statt dass ein
+ * ausgefallener Task erst bei einem zufälligen Blick auf die Seite auffällt.
+ */
+const POLL_STALE_THRESHOLD_MINUTES = 25;
+
+function minutesSince(iso: string, nowMs: number): number {
+  return (nowMs - new Date(iso).getTime()) / 60_000;
+}
+
+/**
  * Parallel-Variante zu /indexing-checker: identische Bedienung, aber T2
  * (Indexiert) läuft über die offizielle Search Console URL Inspection API
  * statt über Serper.dev - komplett eigene Datenhaltung
@@ -70,8 +82,10 @@ export default function IndexingCheckerGscPage() {
   const [rows, setRows] = useState<IndexingCheckRow[]>([]);
   const [lastUpload, setLastUpload] = useState<LastUpload | null>(null);
   const [lastPollRun, setLastPollRun] = useState<LastPollRun | null>(null);
+  const [pollRunHistory, setPollRunHistory] = useState<LastPollRun[]>([]);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [archives, setArchives] = useState<ArchiveSummary[]>([]);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -96,6 +110,7 @@ export default function IndexingCheckerGscPage() {
       setRows(data.checks ?? []);
       setLastUpload(data.lastUpload ?? null);
       setLastPollRun(data.lastPollRun ?? null);
+      setPollRunHistory(data.pollRunHistory ?? []);
       setPendingIds(data.pendingIds ?? []);
       setArchives(data.archives ?? []);
     } finally {
@@ -119,6 +134,11 @@ export default function IndexingCheckerGscPage() {
 
   useEffect(() => {
     loadResults();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -220,6 +240,14 @@ export default function IndexingCheckerGscPage() {
         Serper.dev - eigene, unabhängige Datenhaltung, zum direkten Vergleich mit dem Serper-basierten Checker.
       </p>
 
+      {lastPollRun && minutesSince(lastPollRun.at, nowTick) > POLL_STALE_THRESHOLD_MINUTES && (
+        <div className="mb-8 rounded border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+          ⚠ Automatischer Check überfällig: letzter Lauf vor{' '}
+          {Math.round(minutesSince(lastPollRun.at, nowTick))} Minuten ({formatViennaDateTime(lastPollRun.at)} Uhr),
+          erwartet wird ein Lauf alle 20 Minuten. Vermutlich läuft der Coolify Scheduled Task gerade nicht.
+        </div>
+      )}
+
       <div className="mb-8 rounded border border-dashed border-slate-700 p-6 text-center">
         <input
           ref={fileInputRef}
@@ -298,6 +326,8 @@ export default function IndexingCheckerGscPage() {
         )}
         {recheckSummary && <p className="text-emerald-400">{recheckSummary}</p>}
       </div>
+
+      <PollRunHistorySection history={pollRunHistory} />
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Ergebnisse ({rows.length})</h2>
@@ -458,6 +488,46 @@ function ArchiveEntry({ archive }: { archive: ArchiveSummary }) {
         ) : (
           <p className="text-sm text-slate-400">Keine Einträge.</p>
         )}
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Nachweis-Log der bisherigen automatischen Poll-Läufe (siehe
+ * pollRunHistory in lib/indexing-checker-gsc/db.ts) - eingeklappt, damit die
+ * Seite im Normalfall übersichtlich bleibt, aber bei Bedarf lückenlos
+ * nachvollziehbar ist, ob der Scheduled Task wirklich alle 20 Minuten lief.
+ */
+function PollRunHistorySection({ history }: { history: LastPollRun[] }) {
+  if (history.length === 0) return null;
+
+  return (
+    <details className="mb-8 rounded border border-slate-800">
+      <summary className="cursor-pointer px-4 py-3 text-sm text-slate-300">
+        Lauf-Historie ({history.length}) - Nachweis der automatischen Checks
+      </summary>
+      <div className="max-h-96 overflow-y-auto px-4 pb-4">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-slate-950 text-slate-400">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">Zeitpunkt</th>
+              <th className="px-3 py-2 text-right font-medium">Geprüft</th>
+              <th className="px-3 py-2 text-right font-medium">Neu gefunden</th>
+              <th className="px-3 py-2 text-right font-medium">Quota</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((run, i) => (
+              <tr key={run.at + i} className="border-t border-slate-800">
+                <td className="px-3 py-2">{formatViennaDateTime(run.at)} Uhr</td>
+                <td className="px-3 py-2 text-right tabular-nums">{run.checked}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{run.foundNow}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-500">{run.quotaUsed}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </details>
   );

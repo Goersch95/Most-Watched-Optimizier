@@ -46,9 +46,19 @@ type Store = {
   quota: Record<string, number>;
   lastUpload: LastUpload | null;
   lastPollRun: LastPollRun | null;
+  /**
+   * Chronologisches Log aller bisherigen Poll-Läufe (neueste zuerst), als
+   * Nachweis, dass der Coolify Scheduled Task tatsächlich im 20-Minuten-Takt
+   * feuert - eine Lücke in dieser Liste zeigt einen ausgefallenen Lauf.
+   * Gedeckelt auf MAX_POLL_RUN_HISTORY, damit die Datei nicht unbegrenzt
+   * wächst.
+   */
+  pollRunHistory: LastPollRun[];
   pendingIds: string[];
   archives: ArchiveEntry[];
 };
+
+const MAX_POLL_RUN_HISTORY = 500;
 
 const DB_PATH = process.env.INDEXING_GSC_DB_PATH || path.join(process.cwd(), 'data', 'indexing-checker-gsc.json');
 const UPLOAD_FILE_PATH = path.join(path.dirname(DB_PATH), 'last-upload-gsc.xlsx');
@@ -65,6 +75,7 @@ function load(): Store {
     quota: {},
     lastUpload: null,
     lastPollRun: null,
+    pollRunHistory: [],
     pendingIds: [],
     archives: [],
   };
@@ -266,11 +277,19 @@ export function clearLastUpload(): void {
 export function setLastPollRun(run: LastPollRun): void {
   const s = load();
   s.lastPollRun = run;
+  s.pollRunHistory.unshift(run);
+  if (s.pollRunHistory.length > MAX_POLL_RUN_HISTORY) {
+    s.pollRunHistory.length = MAX_POLL_RUN_HISTORY;
+  }
   persist();
 }
 
 export function getLastPollRun(): LastPollRun | null {
   return load().lastPollRun;
+}
+
+export function getPollRunHistory(): LastPollRun[] {
+  return load().pollRunHistory;
 }
 
 export function setPendingIds(ids: string[]): void {

@@ -183,6 +183,15 @@ eine der beiden Varianten abgeschaltet wird.
 - **Eigener Scheduler**: analog zum Serper-Checker ein zweiter Coolify
   Scheduled Task gegen `/api/indexing-checker-gsc/poll` mit
   `INDEXING_GSC_POLL_SECRET` als Bearer-Token.
+- **Lauf-Historie als Beweis + Warnbanner bei Ausfall**: Jeder Poll-Lauf
+  (beider Checker) wird zusätzlich zum reinen "letzter Lauf" chronologisch
+  protokolliert (`pollRunHistory`, gedeckelt auf die letzten 500 Läufe) und
+  auf der jeweiligen Seite unter "Lauf-Historie" einsehbar - eine Lücke darin
+  zeigt einen ausgefallenen Scheduled Task. Zusätzlich erscheint automatisch
+  ein rotes Warnbanner, sobald der letzte Lauf mehr als 25 Minuten zurückliegt
+  (Cron-Intervall ist 20 Minuten) - entstanden, nachdem ein fehlender
+  Scheduled Task für den Search-Console-Checker über 40 Minuten unbemerkt
+  blieb.
 
 ## Legal Heavy Check
 
