@@ -21,7 +21,13 @@ export type LastPollRun = {
   at: string;
   checked: number;
   foundNow: number;
+  /** Kumulierter Tageswert (auch für die DAILY_SERP_QUOTA-Obergrenze relevant). */
   quotaUsed: number;
+  /**
+   * Anfragen NUR aus diesem einen Lauf - undefined bei Alteinträgen, die vor
+   * Einführung dieses Felds geloggt wurden.
+   */
+  quotaUsedThisRun?: number;
   pendingRetried: number;
   pendingIngested: number;
 };

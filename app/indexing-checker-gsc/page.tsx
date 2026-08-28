@@ -48,6 +48,7 @@ type LastPollRun = {
   checked: number;
   foundNow: number;
   quotaUsed: number;
+  quotaUsedThisRun?: number;
   pendingRetried: number;
   pendingIngested: number;
 };
@@ -595,7 +596,10 @@ function PollRunHistorySection({ history }: { history: LastPollRun[] }) {
             <tr>
               <th className="px-3 py-2 text-left font-medium">Zeitpunkt</th>
               <th className="px-3 py-2 text-right font-medium">Neu aufgenommen</th>
-              <th className="px-3 py-2 text-right font-medium" title="Echte Search-Console-Anfragen in diesem Lauf">
+              <th
+                className="px-3 py-2 text-right font-medium"
+                title="Echte Search-Console-Anfragen in genau diesem automatischen Lauf - manuelle 'Jetzt prüfen & öffnen'-Klicks im Archiv zählen bewusst nicht mit"
+              >
                 SC-Anfragen (Lauf)
               </th>
               <th className="px-3 py-2 text-right font-medium">Neu indexiert</th>
@@ -603,20 +607,15 @@ function PollRunHistorySection({ history }: { history: LastPollRun[] }) {
             </tr>
           </thead>
           <tbody>
-            {history.map((run, i) => {
-              const previousQuota = history[i + 1]?.quotaUsed ?? 0;
-              const requestsThisRun = Math.max(0, run.quotaUsed - previousQuota);
-
-              return (
-                <tr key={run.at + i} className="border-t border-slate-800">
-                  <td className="px-3 py-2">{formatViennaDateTime(run.at)} Uhr</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{run.pendingIngested}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{requestsThisRun}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{run.foundNow}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-500">{run.quotaUsed}</td>
-                </tr>
-              );
-            })}
+            {history.map((run, i) => (
+              <tr key={run.at + i} className="border-t border-slate-800">
+                <td className="px-3 py-2">{formatViennaDateTime(run.at)} Uhr</td>
+                <td className="px-3 py-2 text-right tabular-nums">{run.pendingIngested}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{run.quotaUsedThisRun ?? '–'}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{run.foundNow}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-500">{run.quotaUsed}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

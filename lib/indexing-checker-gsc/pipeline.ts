@@ -163,6 +163,7 @@ export async function runPollingPass(): Promise<{
   checked: number;
   foundNow: number;
   quotaUsed: number;
+  quotaUsedThisRun: number;
   pendingRetried: number;
   pendingIngested: number;
 }> {
@@ -173,6 +174,16 @@ export async function runPollingPass(): Promise<{
   const due = repo.getDueChecks(nowIso);
 
   let quotaUsed = repo.getTodayQuotaUsed(today);
+  /**
+   * Anders als `quotaUsed` (kumulierter Tageswert, auch für die
+   * DAILY_GSC_QUOTA-Obergrenze gebraucht) zählt das hier NUR Anfragen aus
+   * diesem einen automatischen Durchlauf - manuelle "Jetzt prüfen &
+   * öffnen"-Klicks auf archivierten Zeilen (siehe recheckArchivedRow) tragen
+   * bewusst nicht dazu bei, damit die Lauf-Historie wirklich nur den
+   * automatischen Task beweist und nicht durch manuelle Aktionen verfälscht
+   * wird.
+   */
+  let quotaUsedThisRun = 0;
   let foundNow = 0;
 
   for (const row of due) {
@@ -191,6 +202,7 @@ export async function runPollingPass(): Promise<{
       }
 
       quotaUsed += 1;
+      quotaUsedThisRun += 1;
       const indexed = await checkAndRecordIndexing({ ...row, url }, nowIso, today);
       if (indexed) foundNow += 1;
       continue;
@@ -203,12 +215,13 @@ export async function runPollingPass(): Promise<{
       }
 
       quotaUsed += 1;
+      quotaUsedThisRun += 1;
       const indexed = await checkAndRecordIndexing(row, nowIso, today);
       if (indexed) foundNow += 1;
     }
   }
 
-  const result = { checked: due.length, foundNow, quotaUsed, pendingRetried, pendingIngested };
+  const result = { checked: due.length, foundNow, quotaUsed, quotaUsedThisRun, pendingRetried, pendingIngested };
   repo.setLastPollRun({ at: nowIso, ...result });
   return result;
 }

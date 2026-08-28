@@ -105,6 +105,7 @@ export async function runPollingPass(): Promise<{
   checked: number;
   foundNow: number;
   quotaUsed: number;
+  quotaUsedThisRun: number;
   pendingRetried: number;
   pendingIngested: number;
 }> {
@@ -115,6 +116,7 @@ export async function runPollingPass(): Promise<{
   const due = repo.getDueChecks(nowIso);
 
   let quotaUsed = repo.getTodayQuotaUsed(today);
+  let quotaUsedThisRun = 0;
   let foundNow = 0;
 
   for (const row of due) {
@@ -138,6 +140,7 @@ export async function runPollingPass(): Promise<{
       const found = await isUrlIndexedByGoogle(row.id, row.url);
       repo.incrementQuota(today);
       quotaUsed += 1;
+      quotaUsedThisRun += 1;
 
       if (found) {
         const deltaMinutes = (new Date(nowIso).getTime() - new Date(row.t1_publish).getTime()) / 60_000;
@@ -150,7 +153,7 @@ export async function runPollingPass(): Promise<{
     }
   }
 
-  const result = { checked: due.length, foundNow, quotaUsed, pendingRetried, pendingIngested };
+  const result = { checked: due.length, foundNow, quotaUsed, quotaUsedThisRun, pendingRetried, pendingIngested };
   repo.setLastPollRun({ at: nowIso, ...result });
   return result;
 }

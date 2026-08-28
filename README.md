@@ -206,7 +206,14 @@ eine der beiden Varianten abgeschaltet wird.
   ein rotes Warnbanner, sobald der letzte Lauf mehr als 25 Minuten zurückliegt
   (Cron-Intervall ist 20 Minuten) - entstanden, nachdem ein fehlender
   Scheduled Task für den Search-Console-Checker über 40 Minuten unbemerkt
-  blieb.
+  blieb. Die Spalte "SC-/Serper-Anfragen (Lauf)" zählt bewusst nur Anfragen
+  aus dem jeweiligen automatischen Durchlauf selbst (`quotaUsedThisRun`) -
+  ursprünglich aus der Differenz der kumulierten Tages-Quota zum Vorlauf
+  berechnet, was aber fälschlich auch manuelle "Jetzt prüfen &
+  öffnen"-Klicks im Archiv (siehe unten) mitzählte, da beide denselben
+  Tages-Zähler nutzen. Jetzt zählt jeder automatische Lauf seine eigenen
+  Anfragen direkt selbst, unabhängig von zwischenzeitlichen manuellen
+  Aktionen.
 
 ## Legal Heavy Check
 
