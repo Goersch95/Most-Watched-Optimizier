@@ -137,9 +137,23 @@ export function upsertCheck(row: {
   persist();
 }
 
+/**
+ * "pending"-Zeilen (noch nicht live) bleiben am next_poll_at-Rhythmus (alle
+ * LIVE_CHECK_RETRY_MINUTES, siehe pipeline.ts) - reiner Live-Check, kostet
+ * keine Search-Console-Quota. "live"-Zeilen (bereits online, noch nicht
+ * indexiert) werden dagegen IMMER als fällig zurückgegeben, unabhängig vom
+ * gespeicherten next_poll_at - anders als beim Serper-Checker gibt es bei
+ * Search Console kein enges Kosten-Tageslimit, das ein Backoff nötig machen
+ * würde, und jede offene Zeile soll bei jedem automatischen Lauf geprüft
+ * werden.
+ */
 export function getDueChecks(nowIso: string): IndexingCheckRow[] {
   return Object.values(load().checks)
-    .filter((r) => r.status !== 'found' && r.next_poll_at <= nowIso)
+    .filter((r) => {
+      if (r.status === 'found') return false;
+      if (r.status === 'live') return true;
+      return r.next_poll_at <= nowIso;
+    })
     .sort((a, b) => (a.next_poll_at < b.next_poll_at ? -1 : a.next_poll_at > b.next_poll_at ? 1 : 0));
 }
 

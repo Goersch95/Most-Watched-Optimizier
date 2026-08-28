@@ -156,6 +156,15 @@ eine der beiden Varianten abgeschaltet wird.
   Live gegen die echte API verifiziert. Der Debug-Endpoint
   (`/api/indexing-checker-gsc/debug-search?id=...`) zeigt weiterhin die rohe
   API-Antwort für eine einzelne ID, hilfreich zur Fehlersuche.
+- **Jede offene Zeile bei jedem Lauf geprüft, kein Backoff**: Anders als der
+  Serper-Checker (der wegen des knappen, kostenpflichtigen Tageslimits
+  zwischen erfolglosen Checks bewusst länger wartet - 30/60/180 Minuten,
+  dann 1x/Tag, siehe `pollDelayMinutes` in `lib/indexing-checker/pipeline.ts`)
+  wird beim Search-Console-Checker jede noch nicht indexierte ("live") Zeile
+  bei **jedem** automatischen Lauf erneut geprüft (`getDueChecks` in
+  `lib/indexing-checker-gsc/db.ts` ignoriert `next_poll_at` für den Status
+  `live`) - unproblematisch, da die URL Inspection API kostenlos ist und ein
+  Limit von ca. 2.000 Anfragen/Tag hat.
 - **Setup**: Ein Service-Account in Google Cloud anlegen (im selben Projekt wie
   Serper/CMS oder einem neuen), **Search Console API** aktivieren, den
   Service-Account-JSON-Key erzeugen. Dann die Service-Account-E-Mail-Adresse in
