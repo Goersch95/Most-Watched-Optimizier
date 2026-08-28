@@ -213,7 +213,13 @@ eine der beiden Varianten abgeschaltet wird.
   öffnen"-Klicks im Archiv (siehe unten) mitzählte, da beide denselben
   Tages-Zähler nutzen. Jetzt zählt jeder automatische Lauf seine eigenen
   Anfragen direkt selbst, unabhängig von zwischenzeitlichen manuellen
-  Aktionen.
+  Aktionen. Jede Zeile ist außerdem mit ihrer Quelle markiert
+  (`source: 'auto' | 'manual'`) - eine Badge unterscheidet den Coolify
+  Scheduled Task (unauffällig, grau) vom "Offene sofort neu prüfen"-Button
+  (auffällig, orange + getönte Zeile), da beide intern dieselbe
+  `runPollingPass()`-Funktion aufrufen und sonst nicht unterscheidbar wären.
+  Alteinträge von vor dieser Erweiterung zeigen keine Badge statt einer
+  geratenen Angabe.
 
 ## Legal Heavy Check
 

@@ -30,6 +30,8 @@ export type LastPollRun = {
   quotaUsedThisRun?: number;
   pendingRetried: number;
   pendingIngested: number;
+  /** Wodurch dieser Lauf ausgelöst wurde - undefined bei Alteinträgen vor Einführung dieses Felds. */
+  source?: 'auto' | 'manual';
 };
 
 export type ArchiveEntry = {

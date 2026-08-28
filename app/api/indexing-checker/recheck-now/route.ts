@@ -12,7 +12,7 @@ export async function POST() {
   try {
     const urlsResynced = await resyncLiveRowUrls();
     const reset = resetLiveRowsToDueNow();
-    const result = await runPollingPass();
+    const result = await runPollingPass('manual');
     return NextResponse.json({ reset, urlsResynced, ...result });
   } catch (err) {
     return NextResponse.json(

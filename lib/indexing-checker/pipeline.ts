@@ -101,13 +101,14 @@ export async function resyncLiveRowUrls(): Promise<number> {
   return updated;
 }
 
-export async function runPollingPass(): Promise<{
+export async function runPollingPass(source: 'auto' | 'manual' = 'auto'): Promise<{
   checked: number;
   foundNow: number;
   quotaUsed: number;
   quotaUsedThisRun: number;
   pendingRetried: number;
   pendingIngested: number;
+  source: 'auto' | 'manual';
 }> {
   const { retried: pendingRetried, nowIngested: pendingIngested } = await retryPendingIngestions();
 
@@ -153,7 +154,7 @@ export async function runPollingPass(): Promise<{
     }
   }
 
-  const result = { checked: due.length, foundNow, quotaUsed, quotaUsedThisRun, pendingRetried, pendingIngested };
+  const result = { checked: due.length, foundNow, quotaUsed, quotaUsedThisRun, pendingRetried, pendingIngested, source };
   repo.setLastPollRun({ at: nowIso, ...result });
   return result;
 }

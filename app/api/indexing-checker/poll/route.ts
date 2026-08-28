@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await runPollingPass();
+    const result = await runPollingPass('auto');
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json(

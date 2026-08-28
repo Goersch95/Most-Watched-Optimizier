@@ -50,6 +50,7 @@ type LastPollRun = {
   quotaUsedThisRun?: number;
   pendingRetried: number;
   pendingIngested: number;
+  source?: 'auto' | 'manual';
 };
 
 type ArchiveSummary = {
@@ -478,6 +479,25 @@ function ArchiveEntry({ archive }: { archive: ArchiveSummary }) {
 }
 
 /**
+ * Unterscheidet in der Lauf-Historie optisch zwischen dem Coolify Scheduled
+ * Task (automatisch) und einem Klick auf "Offene sofort neu prüfen"
+ * (manuell) - beide rufen intern dieselbe runPollingPass()-Funktion auf und
+ * wären sonst nicht unterscheidbar. Alteinträge von vor Einführung dieses
+ * Felds zeigen keine Badge (Quelle unbekannt).
+ */
+function PollRunSourceBadge({ source }: { source?: 'auto' | 'manual' }) {
+  if (!source) return null;
+
+  return source === 'manual' ? (
+    <span className="rounded border border-amber-800 bg-amber-950/50 px-1.5 py-0.5 text-xs text-amber-300">
+      Manuell
+    </span>
+  ) : (
+    <span className="rounded border border-slate-700 px-1.5 py-0.5 text-xs text-slate-500">Automatisch</span>
+  );
+}
+
+/**
  * Nachweis-Log der bisherigen automatischen Poll-Läufe (siehe
  * pollRunHistory in lib/indexing-checker/db.ts) - eingeklappt, damit die
  * Seite im Normalfall übersichtlich bleibt, aber bei Bedarf lückenlos
@@ -506,8 +526,13 @@ function PollRunHistorySection({ history }: { history: LastPollRun[] }) {
           </thead>
           <tbody>
             {history.map((run, i) => (
-              <tr key={run.at + i} className="border-t border-slate-800">
-                <td className="px-3 py-2">{formatViennaDateTime(run.at)} Uhr</td>
+              <tr
+                key={run.at + i}
+                className={`border-t border-slate-800 ${run.source === 'manual' ? 'bg-amber-950/20' : ''}`}
+              >
+                <td className="px-3 py-2">
+                  {formatViennaDateTime(run.at)} Uhr <PollRunSourceBadge source={run.source} />
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">{run.pendingIngested}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{run.quotaUsedThisRun ?? '–'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{run.foundNow}</td>
