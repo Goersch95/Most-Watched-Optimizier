@@ -246,8 +246,13 @@ synchron beim Upload (ein Bulk-Fetch der gesamten API, dann lokaler Abgleich geg
   wird im Browser-State gehalten (`uploadedFile`) - nach einer Zeitraum-Änderung lässt
   sich derselbe Abgleich erneut anstoßen, ohne die Datei nochmal auszuwählen. Der Button
   erscheint erst nach dem ersten erfolgreichen Upload.
-- **CSV-Parsing** (`lib/legal-check/csv-parser.ts`): Windows-1252-kodiert, semikolon-
-  getrennt, Spalten werden über die Kopfzeile gesucht (nicht über feste Positionen).
+- **CSV-Parsing** (`lib/legal-check/csv-parser.ts`): unterstützt beide bekannten
+  Export-Varianten, je nach Excel-Sprache/Gebietsschema der exportierenden Person -
+  deutsches Excel liefert Windows-1252, semikolon-getrennt (Komma ist dort das
+  Dezimaltrennzeichen), englisches Excel dagegen UTF-8 (mit BOM), komma-getrennt. Die
+  Kodierung wird anhand des BOM erkannt, das Trennzeichen von Papa Parse automatisch
+  erkannt. Spalten werden über die Kopfzeile gesucht (nicht über feste Positionen), damit
+  ist auch Spalten-Umsortierung zwischen den Varianten unproblematisch.
 - **Geo-Abgleich** (`lib/legal-check/geo-matcher.ts`): "GEO-REST." in der Excel ist eine
   Freigabeliste (verfügbare Länder), das API-Feld `geoblocking` eine Sperrliste. Für alle
   Werte außer `GST` gilt: Sperrliste = {Deutschland, Österreich, Schweiz, Liechtenstein,

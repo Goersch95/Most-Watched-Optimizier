@@ -2,18 +2,27 @@ import Papa from 'papaparse';
 import type { CsvRow } from './types';
 
 /**
- * Der Legal-Export ist Windows-1252-kodiert, semikolon-getrennt, mit einer
- * Titel-Zeile vor der eigentlichen Kopfzeile ("GESAMTÜBERSICHT..."). Spalten
- * werden über die Kopfzeile gesucht (wie beim Indexierungs-Checker), nicht
- * über feste Positionen - robust gegen Spalten-Umsortierung.
+ * Der Legal-Export kommt in zwei bekannten Varianten vor, je nach
+ * Excel-Sprache/Gebietsschema der exportierenden Person: deutsches Excel
+ * liefert Windows-1252-kodierten, semikolon-getrennten Text (Komma ist dort
+ * das Dezimaltrennzeichen), englisches Excel dagegen UTF-8 (mit BOM) und
+ * komma-getrennt. Beide haben sonst dieselbe Struktur - eine Titel-Zeile vor
+ * der eigentlichen Kopfzeile ("GESAMTÜBERSICHT..."), Spalten über die
+ * Kopfzeile gesucht statt über feste Positionen. Die Kodierung wird über das
+ * BOM erkannt (eindeutiges Signal, robuster als "raten"); das Trennzeichen
+ * überlässt Papa Parse der eigenen Auto-Erkennung (deckt beide Fälle ab).
  */
 function normalizeHeader(h: string): string {
   return h.trim().toLowerCase();
 }
 
+function hasUtf8Bom(buffer: Buffer): boolean {
+  return buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf;
+}
+
 export function parseLegalCsv(buffer: Buffer): CsvRow[] {
-  const text = new TextDecoder('windows-1252').decode(buffer);
-  const parsed = Papa.parse<string[]>(text.trim(), { delimiter: ';', skipEmptyLines: true });
+  const text = new TextDecoder(hasUtf8Bom(buffer) ? 'utf-8' : 'windows-1252').decode(buffer);
+  const parsed = Papa.parse<string[]>(text.trim(), { skipEmptyLines: true });
   const rows = parsed.data;
 
   let headerRowIndex = -1;
