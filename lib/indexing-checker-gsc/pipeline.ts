@@ -1,4 +1,4 @@
-import { classifySlot } from '../indexing-checker/schedule';
+import { classifySlot, viennaDateKey } from '../indexing-checker/schedule';
 import { buildServusTvUrl, checkLiveAndResolveCanonical, fetchPublishDate } from '../indexing-checker/servustv';
 import * as repo from './db';
 import { isUrlIndexedByGoogleSearchConsole } from './search-console-client';
@@ -9,9 +9,17 @@ import { isUrlIndexedByGoogleSearchConsole } from './search-console-client';
  * Anfragen/Tag pro Property und kostet nichts - dieses Limit hier ist kein
  * Kosten-Deckel wie beim Serper-Checker, sondern nur ein grober Schutz vor
  * einem versehentlichen Burst (z. B. bei einem sehr großen Excel-Upload),
- * deutlich unter dem echten API-Limit.
+ * mit Sicherheitsabstand zum echten API-Limit. Seit jede offene Zeile bei
+ * jedem automatischen Lauf geprüft wird (kein Backoff mehr, siehe
+ * getDueChecks in db.ts), reichen schon relativ wenige gleichzeitig offene
+ * Zeilen (alle 20 Min. geprüft = bis zu 72x/Tag pro Zeile), um ein zu
+ * niedriges Limit binnen weniger Stunden zu erreichen - vormals 500 war
+ * dafür deutlich zu knapp (in der Praxis schon bei 13 offenen Zeilen nach
+ * ca. 6-7 Stunden erreicht, wodurch alle weiteren Checks für den Rest des
+ * Tages stillschweigend übersprungen wurden, ohne dass eine echte Anfrage
+ * passierte).
  */
-const DAILY_GSC_QUOTA = 500;
+const DAILY_GSC_QUOTA = 1800;
 
 const LIVE_CHECK_RETRY_MINUTES = 5;
 
@@ -138,7 +146,7 @@ export async function recheckArchivedRow(
     return { ok: false, error: 'Archivierte Zeile nicht gefunden.' };
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = viennaDateKey(new Date().toISOString());
   if (repo.getTodayQuotaUsed(today) >= DAILY_GSC_QUOTA) {
     return { ok: false, error: 'Tages-Sicherheitslimit für Search-Console-Anfragen erreicht - bitte später erneut versuchen.' };
   }
@@ -171,7 +179,7 @@ export async function runPollingPass(source: 'auto' | 'manual' = 'auto'): Promis
   const { retried: pendingRetried, nowIngested: pendingIngested } = await retryPendingIngestions();
 
   const nowIso = new Date().toISOString();
-  const today = nowIso.slice(0, 10);
+  const today = viennaDateKey(nowIso);
   const due = repo.getDueChecks(nowIso);
 
   let quotaUsed = repo.getTodayQuotaUsed(today);

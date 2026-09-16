@@ -149,10 +149,14 @@ eine der beiden Varianten abgeschaltet wird.
   über Serper.dev - liefert Googles tatsächlichen, exakten Indexierungsstatus
   (Feld `inspectionResult.indexStatusResult.verdict`, `"PASS"` = indexiert)
   statt einer SERP-Annäherung. Kostenlos, offizielles Limit ca. 2.000
-  Anfragen/Tag pro Property; ein eigenes, deutlich niedrigeres
-  Sicherheits-Tageslimit (`DAILY_GSC_QUOTA` in `pipeline.ts`) schützt nur vor
-  einem versehentlichen Burst, ist aber kein Kosten-Deckel wie beim
-  Serper-Checker.
+  Anfragen/Tag pro Property; ein eigenes Sicherheits-Tageslimit
+  (`DAILY_GSC_QUOTA = 1800` in `pipeline.ts`, mit Sicherheitsabstand zum
+  echten Limit) schützt nur vor einem versehentlichen Burst, ist aber kein
+  Kosten-Deckel wie beim Serper-Checker. War ursprünglich 500 - seit jede
+  offene Zeile bei jedem Lauf geprüft wird (siehe unten), reichten schon
+  wenige gleichzeitig offene Zeilen (13 in einem beobachteten Fall), um
+  dieses Limit binnen 6-7 Stunden zu erreichen und alle weiteren Checks für
+  den Rest des Tages stillschweigend zu überspringen.
   Live gegen die echte API verifiziert. Der Debug-Endpoint
   (`/api/indexing-checker-gsc/debug-search?id=...`) zeigt weiterhin die rohe
   API-Antwort für eine einzelne ID, hilfreich zur Fehlersuche.
@@ -165,6 +169,13 @@ eine der beiden Varianten abgeschaltet wird.
   `lib/indexing-checker-gsc/db.ts` ignoriert `next_poll_at` für den Status
   `live`) - unproblematisch, da die URL Inspection API kostenlos ist und ein
   Limit von ca. 2.000 Anfragen/Tag hat.
+- **Tages-Quota nach Wiener Kalendertag, nicht UTC**: Beide Checker
+  schlüsseln ihre Tages-Quota über `viennaDateKey()`
+  (`lib/indexing-checker/schedule.ts`) statt über das UTC-Datum
+  (`iso.slice(0, 10)`). Im Sommer (UTC+2) rollt das UTC-Datum erst 2h nach
+  Wiener Mitternacht um - mit dem UTC-Datum als Schlüssel blieb die Quota
+  bis 02:00 Uhr Wiener Zeit fälschlich am Vortag "hängen", obwohl die
+  Lauf-Historie schon Zeitstempel des neuen Tages zeigte.
 - **Setup**: Ein Service-Account in Google Cloud anlegen (im selben Projekt wie
   Serper/CMS oder einem neuen), **Search Console API** aktivieren, den
   Service-Account-JSON-Key erzeugen. Dann die Service-Account-E-Mail-Adresse in

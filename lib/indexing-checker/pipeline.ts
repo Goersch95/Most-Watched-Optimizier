@@ -1,5 +1,5 @@
 import * as repo from './db';
-import { classifySlot } from './schedule';
+import { classifySlot, viennaDateKey } from './schedule';
 import { isUrlIndexedByGoogle } from './serper-search';
 import { buildServusTvUrl, checkLiveAndResolveCanonical, fetchPublishDate } from './servustv';
 
@@ -113,7 +113,7 @@ export async function runPollingPass(source: 'auto' | 'manual' = 'auto'): Promis
   const { retried: pendingRetried, nowIngested: pendingIngested } = await retryPendingIngestions();
 
   const nowIso = new Date().toISOString();
-  const today = nowIso.slice(0, 10);
+  const today = viennaDateKey(nowIso);
   const due = repo.getDueChecks(nowIso);
 
   let quotaUsed = repo.getTodayQuotaUsed(today);

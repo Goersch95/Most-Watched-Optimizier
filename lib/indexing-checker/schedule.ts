@@ -88,3 +88,15 @@ export function formatViennaDateTime(iso: string): string {
     hourCycle: 'h23',
   }).format(date);
 }
+
+/**
+ * Kalendertag in Wiener Lokalzeit als "YYYY-MM-DD", z. B. für den
+ * Tages-Quota-Schlüssel der Indexierungs-Checker. `nowIso.slice(0, 10)`
+ * (UTC-Datum) wäre hier falsch: durch die Sommerzeit (UTC+2) rollt das
+ * UTC-Datum erst 2h nach Wiener Mitternacht um, wodurch die Tages-Quota
+ * bis 02:00 Uhr Wiener Zeit fälschlich noch am Vortag "hängen" bleibt.
+ */
+export function viennaDateKey(iso: string): string {
+  const date = toDate(iso);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(date);
+}
