@@ -1,5 +1,6 @@
 import { JWT } from 'google-auth-library';
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchCmsProduct } from '@/lib/cms-client';
 import { buildServusTvUrl, checkLiveAndResolveCanonical } from '@/lib/indexing-checker/servustv';
 import { normalizePrivateKey } from '@/lib/indexing-checker-gsc/search-console-client';
 
@@ -40,6 +41,12 @@ export async function GET(req: NextRequest) {
   const { live, canonicalUrl } = await checkLiveAndResolveCanonical(bareUrl);
   const url = canonicalUrl ?? bareUrl;
 
+  // Rohe CMS-Metadaten zum direkten Abgleich mitgeben - Ziel: herausfinden,
+  // welches Feld (Titel, ein eigenes Slug/Alias-Feld o. Ä.) den Slug in
+  // `canonicalUrl` tatsächlich bestimmt. Rein informativ, kein Einfluss auf
+  // die Inspection-Anfrage selbst.
+  const cmsProduct = await fetchCmsProduct(id);
+
   const client = new JWT({
     email,
     key: normalizePrivateKey(rawKey),
@@ -60,6 +67,7 @@ export async function GET(req: NextRequest) {
       requestedUrl: url,
       searchConsoleHttpStatus: res.status,
       response: res.data,
+      cmsProduct,
     });
   } catch (err) {
     const anyErr = err as { response?: { status?: number; data?: unknown }; message?: string };
@@ -72,6 +80,7 @@ export async function GET(req: NextRequest) {
         searchConsoleHttpStatus: anyErr.response?.status ?? null,
         response: anyErr.response?.data ?? null,
         error: anyErr.message ?? String(err),
+        cmsProduct,
       },
       { status: 500 }
     );
