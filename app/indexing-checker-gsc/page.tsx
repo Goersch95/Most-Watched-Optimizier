@@ -250,6 +250,8 @@ export default function IndexingCheckerGscPage() {
         </div>
       )}
 
+      <UrlLookupTool />
+
       <div className="mb-8 rounded border border-dashed border-slate-700 p-6 text-center">
         <input
           ref={fileInputRef}
@@ -378,6 +380,121 @@ export default function IndexingCheckerGscPage() {
 
       <ArchiveSection archives={archives} />
     </main>
+  );
+}
+
+type LookupResult = {
+  requestedUrl: string;
+  indexed: boolean;
+  googleCanonical: string | null;
+  coverageState: string | null;
+  inspectionLink: string | null;
+};
+
+/**
+ * Eigenständiges Nachschlage-Werkzeug, unabhängig von der Excel-Tracking-
+ * Runde: nur eine ID eingeben, liefert live von der echten Search-Console-
+ * API, welche URL Google für diese ID tatsächlich als kanonisch/indexiert
+ * führt - nützlich z. B. um für neue, noch nicht standardisierte Formate
+ * herauszufinden, welchen Slug Google hinter der ID ansetzt, ohne dafür
+ * eine ganze Tracking-Runde starten zu müssen.
+ */
+function UrlLookupTool() {
+  const [id, setId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<LookupResult | null>(null);
+
+  async function handleLookup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id.trim()) return;
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const res = await fetch('/api/indexing-checker-gsc/lookup-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? 'Nachschlagen fehlgeschlagen.');
+        return;
+      }
+
+      setResult(data);
+    } catch {
+      setError('Nachschlagen fehlgeschlagen. Bitte erneut versuchen.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mb-8 rounded border border-slate-800 bg-slate-900/50 p-4">
+      <h2 className="mb-1 text-sm font-semibold text-slate-200">URL-Nachschlagen</h2>
+      <p className="mb-3 text-xs text-slate-500">
+        Nur eine ID eingeben - liefert live, welche URL Google für diese ID tatsächlich als kanonisch/indexiert führt
+        (auch für Formate außerhalb des üblichen Trackings, ohne eine Excel-Runde zu starten).
+      </p>
+      <form onSubmit={handleLookup} className="flex flex-wrap gap-2">
+        <input
+          type="text"
+          value={id}
+          onChange={(e) => setId(e.target.value)}
+          placeholder="z. B. AAVTRKVHHN59ABMHBQ3Z"
+          className="min-w-[220px] flex-1 rounded border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200"
+        />
+        <button
+          type="submit"
+          disabled={loading || !id.trim()}
+          className="rounded bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? 'Prüft…' : 'Nachschlagen'}
+        </button>
+      </form>
+
+      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+
+      {result && (
+        <div className="mt-3 space-y-1 text-sm">
+          <p className="text-slate-500">
+            Geprüfte URL: <span className="text-slate-300">{result.requestedUrl}</span>
+          </p>
+          {result.indexed && result.googleCanonical ? (
+            <p className="text-emerald-400">
+              Von Google indexiert unter:{' '}
+              <a
+                href={result.googleCanonical}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-emerald-700 hover:decoration-emerald-400"
+              >
+                {result.googleCanonical}
+              </a>
+            </p>
+          ) : (
+            <p className="text-amber-400">
+              Noch nicht indexiert{result.coverageState ? ` (Status: ${result.coverageState})` : ''}.
+            </p>
+          )}
+          {result.inspectionLink && (
+            <a
+              href={result.inspectionLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
+            >
+              In Search Console öffnen
+            </a>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

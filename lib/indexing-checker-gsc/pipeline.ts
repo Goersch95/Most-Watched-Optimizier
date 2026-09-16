@@ -167,6 +167,51 @@ export async function recheckArchivedRow(
   return { ok: true, indexed, row: updated ?? undefined };
 }
 
+/**
+ * Eigenständiges Nachschlage-Werkzeug: nur eine ID eingeben, keine
+ * Excel-Runde nötig - liefert live, welche URL Google für diese ID
+ * tatsächlich als kanonisch/indexiert führt (`googleCanonical` aus der
+ * echten Search-Console-Antwort, nicht nur unsere eigene aus dem
+ * `<link rel="canonical">`-Tag gescrapte Vermutung). Verbraucht bewusst
+ * dieselbe Tages-Quota wie die automatischen Läufe, damit ein exzessives
+ * manuelles Nachschlagen nicht versehentlich Googles echtes Limit sprengt.
+ */
+export async function lookupIndexedUrl(assetId: string): Promise<{
+  ok: boolean;
+  error?: string;
+  requestedUrl?: string;
+  indexed?: boolean;
+  googleCanonical?: string | null;
+  coverageState?: string | null;
+  inspectionLink?: string | null;
+}> {
+  const trimmedId = assetId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: 'Bitte eine ID eingeben.' };
+  }
+
+  const today = viennaDateKey(new Date().toISOString());
+  if (repo.getTodayQuotaUsed(today) >= DAILY_GSC_QUOTA) {
+    return { ok: false, error: 'Tages-Sicherheitslimit für Search-Console-Anfragen erreicht - bitte später erneut versuchen.' };
+  }
+
+  const bareUrl = buildServusTvUrl(trimmedId);
+  const { live, canonicalUrl } = await checkLiveAndResolveCanonical(bareUrl);
+
+  if (!live) {
+    return { ok: false, error: `Seite für "${trimmedId}" ist aktuell nicht erreichbar (geprüft: ${bareUrl}).` };
+  }
+
+  const requestedUrl = canonicalUrl ?? bareUrl;
+  const { indexed, googleCanonical, coverageState, inspectionLink } = await isUrlIndexedByGoogleSearchConsole(
+    trimmedId,
+    requestedUrl
+  );
+  repo.incrementQuota(today);
+
+  return { ok: true, requestedUrl, indexed, googleCanonical, coverageState, inspectionLink };
+}
+
 export async function runPollingPass(source: 'auto' | 'manual' = 'auto'): Promise<{
   checked: number;
   foundNow: number;

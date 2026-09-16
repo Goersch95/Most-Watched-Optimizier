@@ -57,6 +57,17 @@ export type IndexingCheckResult = {
    * Search Console suchen zu müssen.
    */
   inspectionLink: string | null;
+  /**
+   * `inspectionResult.indexStatusResult.googleCanonical` - die URL, die
+   * Google selbst als kanonisch für diesen Inhalt führt. Kann von unserer
+   * eigenen, aus dem `<link rel="canonical">`-Tag gescrapten Vermutung
+   * abweichen (Google entscheidet das letztlich selbst) - für die Frage
+   * "welche URL ist bei Google tatsächlich indexiert" die verlässlichere
+   * Quelle als unser eigener Scrape.
+   */
+  googleCanonical: string | null;
+  /** `inspectionResult.indexStatusResult.coverageState`, z. B. "Submitted and indexed" oder "URL is unknown to Google". */
+  coverageState: string | null;
 };
 
 /**
@@ -74,12 +85,12 @@ export type IndexingCheckResult = {
 export async function isUrlIndexedByGoogleSearchConsole(_assetId: string, url: string): Promise<IndexingCheckResult> {
   const client = getClient();
   const siteUrl = process.env.GSC_SITE_URL;
-  if (!client || !siteUrl) return { indexed: false, inspectionLink: null };
+  if (!client || !siteUrl) return { indexed: false, inspectionLink: null, googleCanonical: null, coverageState: null };
 
   try {
     const res = await client.request<{
       inspectionResult?: {
-        indexStatusResult?: { verdict?: string };
+        indexStatusResult?: { verdict?: string; googleCanonical?: string; coverageState?: string };
         inspectionResultLink?: string;
       };
     }>({
@@ -88,10 +99,14 @@ export async function isUrlIndexedByGoogleSearchConsole(_assetId: string, url: s
       data: { inspectionUrl: url, siteUrl },
     });
 
-    const verdict = res.data?.inspectionResult?.indexStatusResult?.verdict;
-    const inspectionLink = res.data?.inspectionResult?.inspectionResultLink ?? null;
-    return { indexed: verdict === 'PASS', inspectionLink };
+    const indexStatus = res.data?.inspectionResult?.indexStatusResult;
+    return {
+      indexed: indexStatus?.verdict === 'PASS',
+      inspectionLink: res.data?.inspectionResult?.inspectionResultLink ?? null,
+      googleCanonical: indexStatus?.googleCanonical ?? null,
+      coverageState: indexStatus?.coverageState ?? null,
+    };
   } catch {
-    return { indexed: false, inspectionLink: null };
+    return { indexed: false, inspectionLink: null, googleCanonical: null, coverageState: null };
   }
 }

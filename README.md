@@ -160,6 +160,17 @@ eine der beiden Varianten abgeschaltet wird.
   Live gegen die echte API verifiziert. Der Debug-Endpoint
   (`/api/indexing-checker-gsc/debug-search?id=...`) zeigt weiterhin die rohe
   API-Antwort für eine einzelne ID, hilfreich zur Fehlersuche.
+- **URL-Nachschlagen**: Eigenständiges Werkzeug oben auf der Seite, unabhängig
+  von einer laufenden Excel-Tracking-Runde - nur eine ID eingeben, liefert
+  live über `lookupIndexedUrl()` (`pipeline.ts`) die URL, die Google für
+  diese ID tatsächlich als kanonisch/indexiert führt
+  (`indexStatusResult.googleCanonical` aus der echten Search-Console-Antwort,
+  nicht nur unsere eigene aus dem `<link rel="canonical">`-Tag gescrapte
+  Vermutung). Gedacht z. B. für neue, noch nicht standardisierte Formate
+  (abseits von "Nachrichten in 90 Sekunden"), um schnell zu prüfen, ob der
+  bestehende Canonical-Scrape-Mechanismus auch dort funktioniert, ohne dafür
+  eine ganze Tracking-Runde zu starten. Verbraucht dieselbe Tages-Quota wie
+  die automatischen Läufe.
 - **Jede offene Zeile bei jedem Lauf geprüft, kein Backoff**: Anders als der
   Serper-Checker (der wegen des knappen, kostenpflichtigen Tageslimits
   zwischen erfolglosen Checks bewusst länger wartet - 30/60/180 Minuten,
