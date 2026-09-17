@@ -1,7 +1,19 @@
+import { fetchCmsProduct } from '@/lib/cms-client';
 import { classifySlot, viennaDateKey } from '../indexing-checker/schedule';
 import { buildServusTvUrl, checkLiveAndResolveCanonical, fetchPublishDate } from '../indexing-checker/servustv';
 import * as repo from './db';
 import { isUrlIndexedByGoogleSearchConsole } from './search-console-client';
+
+/**
+ * Unser Server (Coolify) steht in Nürnberg - manche Assets sind laut CMS
+ * (`blocked_countries`) gezielt für Deutschland gesperrt (Rechte-/Geo-
+ * Beschränkung), unabhängig davon, ob sie z. B. in Österreich frei verfügbar
+ * sind. Live-verifiziert an einem konkreten Fall: 403 beim Live-Check, CMS
+ * bestätigte "DE" in `blocked_countries`. Für diesen Fall lohnt sich eine
+ * klare, eigene Fehlermeldung statt eines irreführenden generischen
+ * "nicht erreichbar" - der Live-Fetch würde ohnehin fehlschlagen.
+ */
+const OUR_SERVER_COUNTRY_CODE = 'DE';
 
 /**
  * Selbst gesetzte Sicherheitsobergrenze für Search-Console-Anfragen pro Tag.
@@ -193,6 +205,16 @@ export async function lookupIndexedUrl(assetId: string): Promise<{
   const today = viennaDateKey(new Date().toISOString());
   if (repo.getTodayQuotaUsed(today) >= DAILY_GSC_QUOTA) {
     return { ok: false, error: 'Tages-Sicherheitslimit für Search-Console-Anfragen erreicht - bitte später erneut versuchen.' };
+  }
+
+  const cmsProduct = await fetchCmsProduct(trimmedId);
+  const rawBlockedCountries = cmsProduct?.blocked_countries;
+  const blockedCountries = Array.isArray(rawBlockedCountries) ? rawBlockedCountries : [];
+  if (blockedCountries.includes(OUR_SERVER_COUNTRY_CODE)) {
+    return {
+      ok: false,
+      error: `Dieses Asset ist für Deutschland geoblockt (blocked_countries: ${blockedCountries.join(', ')}) - unser Server steht in Nürnberg und kann es deshalb nicht automatisch prüfen, auch wenn es z. B. in Österreich frei verfügbar ist. Bitte manuell in der Search Console nachsehen.`,
+    };
   }
 
   const bareUrl = buildServusTvUrl(trimmedId);

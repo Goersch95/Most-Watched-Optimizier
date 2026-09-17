@@ -170,7 +170,13 @@ eine der beiden Varianten abgeschaltet wird.
   (abseits von "Nachrichten in 90 Sekunden"), um schnell zu prüfen, ob der
   bestehende Canonical-Scrape-Mechanismus auch dort funktioniert, ohne dafür
   eine ganze Tracking-Runde zu starten. Verbraucht dieselbe Tages-Quota wie
-  die automatischen Läufe.
+  die automatischen Läufe. Erkennt vorab per CMS-Feld `blocked_countries`,
+  ob ein Asset für Deutschland geoblockt ist (unser Server steht in
+  Nürnberg) - live an einem echten Fall verifiziert: 403 beim Live-Check,
+  obwohl das Asset z. B. in Österreich frei verfügbar war. In diesem Fall
+  eine eigene, klare Fehlermeldung statt eines generischen "nicht
+  erreichbar", und kein sinnloser Live-Fetch-Versuch, der ohnehin
+  fehlschlagen würde.
 - **Jede offene Zeile bei jedem Lauf geprüft, kein Backoff**: Anders als der
   Serper-Checker (der wegen des knappen, kostenpflichtigen Tageslimits
   zwischen erfolglosen Checks bewusst länger wartet - 30/60/180 Minuten,
