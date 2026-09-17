@@ -20,4 +20,12 @@ export type IndexingCheckRow = {
    * Serpers API dieses Konzept nicht kennt.
    */
   inspection_link: string | null;
+  /**
+   * Sendung/Format laut CMS-Feld `label` (z. B. "Servus Nachrichten in 90
+   * Sekunden", "DTM") - hilfreich, um Zeilen unterschiedlicher Formate in
+   * der Ergebnistabelle auseinanderzuhalten. Nur für Zeilen gesetzt, die
+   * nach Einführung dieses Felds neu aufgenommen wurden; ältere Zeilen
+   * zeigen "–", bis sie über einen neuen Upload erneut aufgenommen werden.
+   */
+  label: string | null;
 };

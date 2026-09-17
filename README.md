@@ -53,6 +53,14 @@ lange es dauert bis ein neu veröffentlichtes "SEN in 90 Sekunden"-Video von Ser
   die auch der Most-Watched-Abgleich nutzt (`lib/cms-client.ts` → `fetchCmsProduct`,
   bestätigtes Feld - entspricht "Current Sunrise" im Dashboard-Export). Die URL wird
   direkt aus der ID gebaut: `https://www.servustv.com/de/page/<ID>`.
+- **Label-Spalte**: Sendung/Format laut CMS-Feld `label` (z. B. "Servus
+  Nachrichten in 90 Sekunden", "DTM"), aus demselben CMS-Fetch wie T1 mitgeholt
+  (`fetchIngestMetadata` in `lib/indexing-checker/servustv.ts`, kein
+  zusätzlicher API-Call). Zeigt "–" bei bereits vor Einführung dieses Felds
+  aufgenommenen Zeilen, bis sie über einen neuen Upload erneut aufgenommen
+  werden. Gedacht, um Zeilen unterschiedlicher Formate in der Ergebnistabelle
+  auseinanderzuhalten, sobald der Checker auch für andere Formate als
+  "Nachrichten in 90 Sekunden" genutzt wird.
 - **IDs ohne Publish-Datum beim Upload**: falls das CMS für eine ID noch kein
   `play_start` liefert (z. B. weil sie zum Upload-Zeitpunkt noch nicht vollständig
   eingeplant war), wird sie nicht endgültig verworfen, sondern als "pending" gemerkt

@@ -1,7 +1,7 @@
 import * as repo from './db';
 import { classifySlot, viennaDateKey } from './schedule';
 import { isUrlIndexedByGoogle } from './serper-search';
-import { buildServusTvUrl, checkLiveAndResolveCanonical, fetchPublishDate } from './servustv';
+import { buildServusTvUrl, checkLiveAndResolveCanonical, fetchIngestMetadata } from './servustv';
 
 /**
  * Selbst gesetzte Sicherheitsobergrenze für Serper.dev-Anfragen pro Tag -
@@ -17,7 +17,7 @@ const DAILY_SERP_QUOTA = 50;
 const LIVE_CHECK_RETRY_MINUTES = 5;
 
 export async function ingestId(assetId: string): Promise<{ ok: boolean; error?: string }> {
-  const t1 = await fetchPublishDate(assetId);
+  const { playStart: t1, label } = await fetchIngestMetadata(assetId);
 
   if (!t1) {
     return { ok: false, error: `Kein Publish-Datum (play_start) über die CMS-API für "${assetId}" gefunden.` };
@@ -32,7 +32,7 @@ export async function ingestId(assetId: string): Promise<{ ok: boolean; error?: 
   const nowIso = new Date().toISOString();
   const nextPollAt = t1 > nowIso ? t1 : nowIso;
 
-  repo.upsertCheck({ id: assetId, url, t1Publish: t1, weekday, slot, nextPollAt });
+  repo.upsertCheck({ id: assetId, url, t1Publish: t1, weekday, slot, nextPollAt, label });
   return { ok: true };
 }
 

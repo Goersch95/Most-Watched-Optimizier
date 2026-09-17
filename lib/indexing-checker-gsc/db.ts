@@ -114,6 +114,7 @@ export function upsertCheck(row: {
   weekday: string;
   slot: string;
   nextPollAt: string;
+  label: string | null;
 }): void {
   const s = load();
   const existing = s.checks[row.id];
@@ -132,6 +133,7 @@ export function upsertCheck(row: {
     next_poll_at: existing ? existing.next_poll_at : row.nextPollAt,
     created_at: existing?.created_at ?? new Date().toISOString(),
     inspection_link: existing?.inspection_link ?? null,
+    label: row.label,
   };
 
   persist();

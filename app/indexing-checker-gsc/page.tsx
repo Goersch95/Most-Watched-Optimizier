@@ -22,6 +22,7 @@ type IndexingCheckRow = {
   next_poll_at: string;
   created_at: string;
   inspection_link: string | null;
+  label: string | null;
 };
 
 const STATUS_LABELS: Record<IndexingStatus, string> = {
@@ -204,9 +205,10 @@ export default function IndexingCheckerGscPage() {
   }
 
   async function exportXlsx() {
-    const headers = ['ID', 'URL', 'Wochentag', 'Slot', 'T1 (Publish)', 'T2 (Indexiert)', 'Delta (Min)', 'Status'];
+    const headers = ['ID', 'Label', 'URL', 'Wochentag', 'Slot', 'T1 (Publish)', 'T2 (Indexiert)', 'Delta (Min)', 'Status'];
     const dataRows = rows.map((r) => [
       r.id,
+      r.label ?? '',
       r.url,
       r.weekday,
       r.slot,
@@ -514,6 +516,7 @@ function ResultsTable({
         <thead className="bg-slate-900 text-slate-400">
           <tr>
             <th className="px-3 py-2 text-left font-medium">ID</th>
+            <th className="px-3 py-2 text-left font-medium">Label</th>
             <th className="px-3 py-2 text-left font-medium">Wochentag</th>
             <th className="px-3 py-2 text-left font-medium">Slot</th>
             <th className="px-3 py-2 text-left font-medium">T1 (Publish)</th>
@@ -536,6 +539,7 @@ function ResultsTable({
                   {row.id}
                 </a>
               </td>
+              <td className="px-3 py-2 text-slate-400">{row.label ?? '–'}</td>
               <td className="px-3 py-2">{row.weekday}</td>
               <td className="px-3 py-2">{row.slot}</td>
               <td className="px-3 py-2">{formatViennaDateTime(row.t1_publish)}</td>

@@ -50,10 +50,17 @@ export async function checkLiveAndResolveCanonical(
 /**
  * T1 = realer Publish-Zeitpunkt = `play_start` (Zeitpunkt ab wann bei
  * ServusTV On verfügbar, entspricht "Current Sunrise" im Dashboard-Export) -
- * bestätigtes Feld, keine Annahme mehr.
+ * bestätigtes Feld, keine Annahme mehr. `label` (z. B. "Servus Nachrichten
+ * in 90 Sekunden", "DTM") ist die Sendung/das Format laut CMS - hilfreich,
+ * um Zeilen unterschiedlicher Formate in der Ergebnistabelle
+ * auseinanderzuhalten, sobald der Checker auch für andere Formate als das
+ * 90-Sekunden-Format genutzt wird. Ein Fetch für beide Felder statt zwei
+ * getrennter Aufrufe gegen dieselbe API.
  */
-export async function fetchPublishDate(assetId: string): Promise<string | null> {
+export async function fetchIngestMetadata(assetId: string): Promise<{ playStart: string | null; label: string | null }> {
   const data = await fetchCmsProduct(assetId);
-  const playStart = data?.play_start;
-  return typeof playStart === 'string' ? playStart : null;
+  return {
+    playStart: typeof data?.play_start === 'string' ? data.play_start : null,
+    label: typeof data?.label === 'string' ? data.label : null,
+  };
 }
