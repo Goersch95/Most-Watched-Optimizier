@@ -47,7 +47,8 @@ export async function GET(req: NextRequest) {
   }
 
   const bareUrl = buildServusTvUrl(id);
-  const { live, canonicalUrl } = await checkLiveAndResolveCanonical(bareUrl);
+  const { live, canonicalUrl, httpStatus: liveHttpStatus, fetchError: liveFetchError } =
+    await checkLiveAndResolveCanonical(bareUrl);
 
   try {
     const bareResult = await serperQuery(apiKey, `site:${bareUrl}`);
@@ -57,6 +58,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       bareUrl,
       live,
+      liveHttpStatus,
+      liveFetchError,
       canonicalUrl,
       bareUrlQuery: bareResult,
       canonicalUrlQuery: canonicalResult,
@@ -64,7 +67,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     return NextResponse.json(
-      { bareUrl, live, canonicalUrl, error: err instanceof Error ? err.message : String(err) },
+      { bareUrl, live, liveHttpStatus, liveFetchError, canonicalUrl, error: err instanceof Error ? err.message : String(err) },
       { status: 500 }
     );
   }

@@ -196,10 +196,11 @@ export async function lookupIndexedUrl(assetId: string): Promise<{
   }
 
   const bareUrl = buildServusTvUrl(trimmedId);
-  const { live, canonicalUrl } = await checkLiveAndResolveCanonical(bareUrl);
+  const { live, canonicalUrl, httpStatus, fetchError } = await checkLiveAndResolveCanonical(bareUrl);
 
   if (!live) {
-    return { ok: false, error: `Seite für "${trimmedId}" ist aktuell nicht erreichbar (geprüft: ${bareUrl}).` };
+    const detail = fetchError ? `Netzwerkfehler: ${fetchError}` : `HTTP-Status ${httpStatus}`;
+    return { ok: false, error: `Seite für "${trimmedId}" ist aktuell nicht erreichbar (geprüft: ${bareUrl}, ${detail}).` };
   }
 
   const requestedUrl = canonicalUrl ?? bareUrl;

@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
   // ID-URL als auch einer Slug-URL aus, aber nur die per <link rel="canonical">
   // deklarierte Slug-URL wird von Google tatsächlich indexiert - die
   // Inspection muss deshalb gegen die aufgelöste URL laufen, nicht die rohe.
-  const { live, canonicalUrl } = await checkLiveAndResolveCanonical(bareUrl);
+  const { live, canonicalUrl, httpStatus: liveHttpStatus, fetchError: liveFetchError } =
+    await checkLiveAndResolveCanonical(bareUrl);
   const url = canonicalUrl ?? bareUrl;
 
   // Rohe CMS-Metadaten zum direkten Abgleich mitgeben - Ziel: herausfinden,
@@ -63,6 +64,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       bareUrl,
       live,
+      liveHttpStatus,
+      liveFetchError,
       canonicalUrl,
       requestedUrl: url,
       searchConsoleHttpStatus: res.status,
@@ -75,6 +78,8 @@ export async function GET(req: NextRequest) {
       {
         bareUrl,
         live,
+        liveHttpStatus,
+        liveFetchError,
         canonicalUrl,
         requestedUrl: url,
         searchConsoleHttpStatus: anyErr.response?.status ?? null,

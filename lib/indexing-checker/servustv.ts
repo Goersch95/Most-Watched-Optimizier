@@ -35,15 +35,15 @@ function extractCanonicalUrl(html: string): string | null {
  */
 export async function checkLiveAndResolveCanonical(
   url: string
-): Promise<{ live: boolean; canonicalUrl: string | null }> {
+): Promise<{ live: boolean; canonicalUrl: string | null; httpStatus: number | null; fetchError: string | null }> {
   try {
     const res = await fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' });
-    if (!res.ok) return { live: false, canonicalUrl: null };
+    if (!res.ok) return { live: false, canonicalUrl: null, httpStatus: res.status, fetchError: null };
 
     const html = await res.text();
-    return { live: true, canonicalUrl: extractCanonicalUrl(html) };
-  } catch {
-    return { live: false, canonicalUrl: null };
+    return { live: true, canonicalUrl: extractCanonicalUrl(html), httpStatus: res.status, fetchError: null };
+  } catch (err) {
+    return { live: false, canonicalUrl: null, httpStatus: null, fetchError: err instanceof Error ? err.message : String(err) };
   }
 }
 
