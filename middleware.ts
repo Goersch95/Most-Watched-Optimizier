@@ -12,7 +12,10 @@ const PUBLIC_PATHS = ['/login', '/api/login', '/api/indexing-checker/poll', '/ap
  * lesender Zugriff auf den Search-Console-Checker, sonst nichts. Exakte
  * Pfade statt eines Präfix-Matches, damit schreibende Routen wie
  * `/api/indexing-checker-gsc/upload` oder `/recheck-now` NICHT versehentlich
- * mit erfasst werden, nur weil sie denselben Präfix teilen.
+ * mit erfasst werden, nur weil sie denselben Präfix teilen. Das Archiv
+ * (`/api/indexing-checker-gsc/archive/[id]`) ist bewusst NICHT enthalten -
+ * die Archiv-Ansicht ist für diese Rolle komplett ausgeblendet, nicht nur in
+ * der UI.
  */
 const VIEWER_GSC_ALLOWED_EXACT_PATHS = [
   '/indexing-checker-gsc',
@@ -22,11 +25,7 @@ const VIEWER_GSC_ALLOWED_EXACT_PATHS = [
 ];
 
 export function isViewerGscAllowedPath(pathname: string): boolean {
-  if (VIEWER_GSC_ALLOWED_EXACT_PATHS.includes(pathname)) return true;
-  // Archiv-Ansicht ist reines Lesen (GET), eigene Prüfung unten stellt sicher,
-  // dass darunter liegende schreibende Routen wie .../archive/[id]/recheck
-  // trotz gleichen Präfixes nicht mit erfasst werden.
-  return /^\/api\/indexing-checker-gsc\/archive\/[^/]+$/.test(pathname);
+  return VIEWER_GSC_ALLOWED_EXACT_PATHS.includes(pathname);
 }
 
 export async function middleware(req: NextRequest) {

@@ -396,7 +396,7 @@ export default function IndexingCheckerGscPage() {
         </div>
       )}
 
-      <ArchiveSection archives={archives} isViewer={isViewer} />
+      {!isViewer && <ArchiveSection archives={archives} isViewer={isViewer} />}
     </main>
   );
 }

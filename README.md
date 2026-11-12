@@ -381,17 +381,18 @@ signiertes, httpOnly-Session-Cookie (7 Tage gültig). Ein einzelner Team-Account
   Session-Token mitgeführt (`lib/session.ts`). Für diese Rolle blockt
   `middleware.ts` serverseitig alle anderen Seiten und API-Routen (Redirect
   bei Seiten, `403` bei APIs) über eine explizite Allowlist exakter Pfade -
-  auch schreibende Routen unter demselben Präfix wie der erlaubte Lesezugriff
-  (z. B. `.../archive/[id]/recheck` neben dem erlaubten `.../archive/[id]`)
-  sind bewusst NICHT mit erfasst. Die UI (`AppNav`, die Checker-Seite selbst)
-  fragt die eigene Rolle über `/api/session` ab und blendet fremde Tabs sowie
-  schreibende Buttons (Upload, "Offene sofort neu prüfen", URL-Nachschlagen,
-  Archiv-Neuprüfung) zusätzlich aus - das ist aber nur UX-Komfort, die
-  eigentliche Durchsetzung passiert in der Middleware. Komplett optional:
-  ohne diese beiden Variablen existiert kein zweites Konto, der bisherige
-  Login verhält sich unverändert (bereits ausgestellte Sessions ohne
-  Rollen-Feld - vor Einführung dieser Funktion - werden defensiv als "admin"
-  behandelt, nicht abgelehnt).
+  das Archiv (`/api/indexing-checker-gsc/archive/[id]`) ist bewusst NICHT
+  enthalten, die Archiv-Ansicht ist für diese Rolle komplett deaktiviert,
+  nicht nur ausgeblendet. Die UI (`AppNav`, die Checker-Seite selbst) fragt
+  die eigene Rolle über `/api/session` ab und blendet zusätzlich fremde Tabs,
+  den Archiv-Bereich sowie alle schreibenden/exportierenden Einzelaktionen
+  aus (Upload, "Offene sofort neu prüfen", URL-Nachschlagen, Datei
+  herunterladen, "Prüfen / Indexierung beantragen") - das ist aber nur
+  UX-Komfort, die eigentliche Durchsetzung passiert in der Middleware.
+  Komplett optional: ohne diese beiden Variablen existiert kein zweites
+  Konto, der bisherige Login verhält sich unverändert (bereits ausgestellte
+  Sessions ohne Rollen-Feld - vor Einführung dieser Funktion - werden
+  defensiv als "admin" behandelt, nicht abgelehnt).
 
 ## Lokale Entwicklung
 
