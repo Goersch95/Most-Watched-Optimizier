@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
   const expectedUsername = process.env.TEAM_USERNAME;
   const passwordHash = process.env.TEAM_PASSWORD_HASH;
   const sessionSecret = process.env.SESSION_SECRET;
+  // Optionales zweites Konto mit reinen Viewer-Rechten, beschränkt auf den
+  // Search-Console-Checker (siehe middleware.ts) - komplett optional, ohne
+  // diese beiden Variablen verhält sich der Login exakt wie zuvor.
+  const viewerUsername = process.env.VIEWER_GSC_USERNAME;
+  const viewerPasswordHash = process.env.VIEWER_GSC_PASSWORD_HASH;
 
   if (!expectedUsername || !passwordHash || !sessionSecret) {
     return NextResponse.json({ error: 'Login ist serverseitig nicht konfiguriert.' }, { status: 500 });
@@ -44,16 +49,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Ungültige Eingabe.' }, { status: 400 });
   }
 
-  // Always run bcrypt.compare, even on a wrong username, so response timing
-  // doesn't leak whether the username was valid.
-  const passwordMatches = await bcrypt.compare(password, passwordHash);
-  const usernameMatches = username === expectedUsername;
+  const isViewerAttempt = Boolean(viewerUsername && viewerPasswordHash && username === viewerUsername);
+
+  // Immer gegen irgendeinen gültigen Hash vergleichen (nie einen leeren/
+  // fehlenden String), auch bei unbekanntem Username - sonst würde die
+  // Antwortzeit verraten, ob der Username existiert.
+  const hashToCheck = isViewerAttempt ? viewerPasswordHash! : passwordHash;
+  const passwordMatches = await bcrypt.compare(password, hashToCheck);
+  const usernameMatches = username === expectedUsername || isViewerAttempt;
 
   if (!usernameMatches || !passwordMatches) {
     return NextResponse.json({ error: 'Benutzername oder Passwort falsch.' }, { status: 401 });
   }
 
-  const token = await createSessionToken(username, sessionSecret);
+  const role = isViewerAttempt ? 'viewer_gsc' : 'admin';
+  const token = await createSessionToken(username, role, sessionSecret);
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE_NAME, token, {

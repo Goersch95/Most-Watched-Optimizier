@@ -7,6 +7,28 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from '@/lib/session';
 // (INDEXING_POLL_SECRET bzw. INDEXING_GSC_POLL_SECRET).
 const PUBLIC_PATHS = ['/login', '/api/login', '/api/indexing-checker/poll', '/api/indexing-checker-gsc/poll'];
 
+/**
+ * Für die Rolle "viewer_gsc" (siehe lib/session.ts) erlaubte Pfade - rein
+ * lesender Zugriff auf den Search-Console-Checker, sonst nichts. Exakte
+ * Pfade statt eines Präfix-Matches, damit schreibende Routen wie
+ * `/api/indexing-checker-gsc/upload` oder `/recheck-now` NICHT versehentlich
+ * mit erfasst werden, nur weil sie denselben Präfix teilen.
+ */
+const VIEWER_GSC_ALLOWED_EXACT_PATHS = [
+  '/indexing-checker-gsc',
+  '/api/indexing-checker-gsc/results',
+  '/api/logout',
+  '/api/session',
+];
+
+export function isViewerGscAllowedPath(pathname: string): boolean {
+  if (VIEWER_GSC_ALLOWED_EXACT_PATHS.includes(pathname)) return true;
+  // Archiv-Ansicht ist reines Lesen (GET), eigene Prüfung unten stellt sicher,
+  // dass darunter liegende schreibende Routen wie .../archive/[id]/recheck
+  // trotz gleichen Präfixes nicht mit erfasst werden.
+  return /^\/api\/indexing-checker-gsc\/archive\/[^/]+$/.test(pathname);
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -22,19 +44,27 @@ export async function middleware(req: NextRequest) {
   }
 
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-  const valid = token ? await verifySessionToken(token, sessionSecret) : false;
+  const session = token ? await verifySessionToken(token, sessionSecret) : null;
 
-  if (valid) {
-    return NextResponse.next();
+  if (!session) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
+    }
+
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname.startsWith('/api/')) {
-    return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
+  if (session.role === 'viewer_gsc' && !isViewerGscAllowedPath(pathname)) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Kein Zugriff - dieses Konto hat nur Leserechte für den Search-Console-Checker.' }, { status: 403 });
+    }
+
+    return NextResponse.redirect(new URL('/indexing-checker-gsc', req.url));
   }
 
-  const loginUrl = new URL('/login', req.url);
-  loginUrl.searchParams.set('redirect', pathname);
-  return NextResponse.redirect(loginUrl);
+  return NextResponse.next();
 }
 
 export const config = {

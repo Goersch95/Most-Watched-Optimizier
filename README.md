@@ -375,6 +375,23 @@ signiertes, httpOnly-Session-Cookie (7 Tage gültig). Ein einzelner Team-Account
   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - Login-Versuche sind pro IP auf 5 Versuche / 10 Minuten begrenzt (In-Memory, gilt pro
   laufender Instanz).
+- **Optionales zweites Konto mit reinen Leserechten** (`VIEWER_GSC_USERNAME`/
+  `VIEWER_GSC_PASSWORD_HASH`, Hash-Erzeugung wie oben), beschränkt auf den Tab
+  "Google-Indexierungs-Checker (Search Console)" - Rolle `viewer_gsc` wird im
+  Session-Token mitgeführt (`lib/session.ts`). Für diese Rolle blockt
+  `middleware.ts` serverseitig alle anderen Seiten und API-Routen (Redirect
+  bei Seiten, `403` bei APIs) über eine explizite Allowlist exakter Pfade -
+  auch schreibende Routen unter demselben Präfix wie der erlaubte Lesezugriff
+  (z. B. `.../archive/[id]/recheck` neben dem erlaubten `.../archive/[id]`)
+  sind bewusst NICHT mit erfasst. Die UI (`AppNav`, die Checker-Seite selbst)
+  fragt die eigene Rolle über `/api/session` ab und blendet fremde Tabs sowie
+  schreibende Buttons (Upload, "Offene sofort neu prüfen", URL-Nachschlagen,
+  Archiv-Neuprüfung) zusätzlich aus - das ist aber nur UX-Komfort, die
+  eigentliche Durchsetzung passiert in der Middleware. Komplett optional:
+  ohne diese beiden Variablen existiert kein zweites Konto, der bisherige
+  Login verhält sich unverändert (bereits ausgestellte Sessions ohne
+  Rollen-Feld - vor Einführung dieser Funktion - werden defensiv als "admin"
+  behandelt, nicht abgelehnt).
 
 ## Lokale Entwicklung
 
@@ -417,6 +434,9 @@ npm run dev
 - Session-Cookie: `httpOnly`, `secure`, `sameSite=lax`, signiert (HMAC-SHA256), mit Ablauf.
 - Passwort nur als bcrypt-Hash gespeichert, nie im Klartext.
 - Rate-Limiting auf `/api/login`.
+- Rollenbasierte Zugriffsbeschränkung (`viewer_gsc`) serverseitig in der
+  Middleware durchgesetzt, nicht nur clientseitig versteckt (siehe "Login"
+  oben).
 
 ## Offene Punkte
 

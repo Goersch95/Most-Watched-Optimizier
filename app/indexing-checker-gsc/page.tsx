@@ -89,6 +89,7 @@ export default function IndexingCheckerGscPage() {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [archives, setArchives] = useState<ArchiveSummary[]>([]);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [isViewer, setIsViewer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -137,6 +138,13 @@ export default function IndexingCheckerGscPage() {
 
   useEffect(() => {
     loadResults();
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/session')
+      .then((res) => res.json())
+      .then((data) => setIsViewer(data.role === 'viewer_gsc'))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -252,28 +260,30 @@ export default function IndexingCheckerGscPage() {
         </div>
       )}
 
-      <UrlLookupTool />
+      {!isViewer && <UrlLookupTool />}
 
-      <div className="mb-8 rounded border border-dashed border-slate-700 p-6 text-center">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx"
-          onChange={handleUpload}
-          className="block w-full text-sm text-slate-300 file:mr-4 file:rounded file:border-0 file:bg-red-600 file:px-4 file:py-2 file:text-white hover:file:bg-red-500 file:cursor-pointer"
-        />
-        <p className="mt-3 text-xs text-slate-500">
-          Excel (.xlsx) mit einer Spalte "ID" (z. B. der Dashboard-Export "AssetListExport") oder einfach eine ID
-          pro Zeile in Spalte A. Dieselbe Datei wie beim Serper-basierten Checker kann hier separat hochgeladen
-          werden, um die Ergebnisse zu vergleichen.
-        </p>
-        <p className="mt-1 text-xs text-slate-500">
-          Ein neuer Upload archiviert automatisch die aktuellen Ergebnisse (weiterhin einsehbar unter "Archiv"
-          unten) und startet eine neue Tracking-Runde nur mit den IDs aus der neuen Datei.
-        </p>
-        {uploading && <p className="mt-3 text-sm text-slate-400">Wird verarbeitet…</p>}
-        {uploadSummary && <p className="mt-3 text-sm text-emerald-400">{uploadSummary}</p>}
-      </div>
+      {!isViewer && (
+        <div className="mb-8 rounded border border-dashed border-slate-700 p-6 text-center">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleUpload}
+            className="block w-full text-sm text-slate-300 file:mr-4 file:rounded file:border-0 file:bg-red-600 file:px-4 file:py-2 file:text-white hover:file:bg-red-500 file:cursor-pointer"
+          />
+          <p className="mt-3 text-xs text-slate-500">
+            Excel (.xlsx) mit einer Spalte "ID" (z. B. der Dashboard-Export "AssetListExport") oder einfach eine ID
+            pro Zeile in Spalte A. Dieselbe Datei wie beim Serper-basierten Checker kann hier separat hochgeladen
+            werden, um die Ergebnisse zu vergleichen.
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Ein neuer Upload archiviert automatisch die aktuellen Ergebnisse (weiterhin einsehbar unter "Archiv"
+            unten) und startet eine neue Tracking-Runde nur mit den IDs aus der neuen Datei.
+          </p>
+          {uploading && <p className="mt-3 text-sm text-slate-400">Wird verarbeitet…</p>}
+          {uploadSummary && <p className="mt-3 text-sm text-emerald-400">{uploadSummary}</p>}
+        </div>
+      )}
 
       {error && (
         <div className="mb-8 rounded border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-300">
@@ -296,14 +306,16 @@ export default function IndexingCheckerGscPage() {
               >
                 Datei herunterladen
               </a>
-              <button
-                type="button"
-                onClick={handleDeleteUpload}
-                disabled={deleting}
-                className="text-sm text-red-400 underline decoration-red-800 hover:text-red-300 hover:decoration-red-600 disabled:opacity-50"
-              >
-                Löschen
-              </button>
+              {!isViewer && (
+                <button
+                  type="button"
+                  onClick={handleDeleteUpload}
+                  disabled={deleting}
+                  className="text-sm text-red-400 underline decoration-red-800 hover:text-red-300 hover:decoration-red-600 disabled:opacity-50"
+                >
+                  Löschen
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -345,15 +357,17 @@ export default function IndexingCheckerGscPage() {
           >
             Aktualisieren
           </button>
-          <button
-            type="button"
-            onClick={handleRecheckNow}
-            disabled={rechecking}
-            title="Setzt alle offenen Zeilen sofort auf fällig und prüft direkt neu, statt bis zu 24h zu warten."
-            className="rounded border border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {rechecking ? 'Prüft…' : 'Offene sofort neu prüfen'}
-          </button>
+          {!isViewer && (
+            <button
+              type="button"
+              onClick={handleRecheckNow}
+              disabled={rechecking}
+              title="Setzt alle offenen Zeilen sofort auf fällig und prüft direkt neu, statt bis zu 24h zu warten."
+              className="rounded border border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {rechecking ? 'Prüft…' : 'Offene sofort neu prüfen'}
+            </button>
+          )}
           <button
             type="button"
             onClick={exportXlsx}
@@ -380,7 +394,7 @@ export default function IndexingCheckerGscPage() {
         </div>
       )}
 
-      <ArchiveSection archives={archives} />
+      <ArchiveSection archives={archives} isViewer={isViewer} />
     </main>
   );
 }
@@ -504,11 +518,13 @@ function ResultsTable({
   rows,
   archiveId,
   onRowUpdated,
+  isViewer,
 }: {
   rows: IndexingCheckRow[];
   /** Nur für Zeilen aus dem Archiv gesetzt - schaltet die Search-Console-Zelle von einem statischen Link auf den On-Demand-Neuprüfungs-Button um. */
   archiveId?: string;
   onRowUpdated?: (row: IndexingCheckRow) => void;
+  isViewer?: boolean;
 }) {
   return (
     <div className="mb-8 overflow-x-auto rounded border border-slate-800">
@@ -554,7 +570,7 @@ function ResultsTable({
               </td>
               <td className="px-3 py-2">
                 {archiveId ? (
-                  row.status === 'pending' ? (
+                  row.status === 'pending' || isViewer ? (
                     '–'
                   ) : (
                     <ArchivedSearchConsoleButton archiveId={archiveId} row={row} onUpdated={onRowUpdated} />
@@ -643,7 +659,7 @@ function ArchivedSearchConsoleButton({
   );
 }
 
-function ArchiveSection({ archives }: { archives: ArchiveSummary[] }) {
+function ArchiveSection({ archives, isViewer }: { archives: ArchiveSummary[]; isViewer: boolean }) {
   if (archives.length === 0) return null;
 
   return (
@@ -651,14 +667,14 @@ function ArchiveSection({ archives }: { archives: ArchiveSummary[] }) {
       <h2 className="mb-4 text-lg font-semibold">Archiv ({archives.length})</h2>
       <div className="space-y-2">
         {archives.map((a) => (
-          <ArchiveEntry key={a.id} archive={a} />
+          <ArchiveEntry key={a.id} archive={a} isViewer={isViewer} />
         ))}
       </div>
     </section>
   );
 }
 
-function ArchiveEntry({ archive }: { archive: ArchiveSummary }) {
+function ArchiveEntry({ archive, isViewer }: { archive: ArchiveSummary; isViewer: boolean }) {
   const [rows, setRows] = useState<IndexingCheckRow[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -689,7 +705,7 @@ function ArchiveEntry({ archive }: { archive: ArchiveSummary }) {
         {loading ? (
           <p className="text-sm text-slate-400">Lädt…</p>
         ) : rows && rows.length > 0 ? (
-          <ResultsTable rows={rows} archiveId={archive.id} onRowUpdated={handleRowUpdated} />
+          <ResultsTable rows={rows} archiveId={archive.id} onRowUpdated={handleRowUpdated} isViewer={isViewer} />
         ) : (
           <p className="text-sm text-slate-400">Keine Einträge.</p>
         )}
