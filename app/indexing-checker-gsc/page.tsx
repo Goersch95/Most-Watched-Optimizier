@@ -300,12 +300,14 @@ export default function IndexingCheckerGscPage() {
               {lastUpload.failed > 0 ? `, ${lastUpload.failed} noch nicht bereit` : ''}
             </p>
             <div className="flex gap-3">
-              <a
-                href="/api/indexing-checker-gsc/last-upload"
-                className="text-sm text-slate-400 underline decoration-slate-600 hover:text-slate-200 hover:decoration-slate-300"
-              >
-                Datei herunterladen
-              </a>
+              {!isViewer && (
+                <a
+                  href="/api/indexing-checker-gsc/last-upload"
+                  className="text-sm text-slate-400 underline decoration-slate-600 hover:text-slate-200 hover:decoration-slate-300"
+                >
+                  Datei herunterladen
+                </a>
+              )}
               {!isViewer && (
                 <button
                   type="button"
@@ -384,7 +386,7 @@ export default function IndexingCheckerGscPage() {
       ) : rows.length === 0 ? (
         <p className="text-slate-400 text-sm">Noch keine Videos erfasst.</p>
       ) : (
-        <ResultsTable rows={rows} />
+        <ResultsTable rows={rows} isViewer={isViewer} />
       )}
 
       {foundRows.length > 0 && (
@@ -575,7 +577,7 @@ function ResultsTable({
                   ) : (
                     <ArchivedSearchConsoleButton archiveId={archiveId} row={row} onUpdated={onRowUpdated} />
                   )
-                ) : row.inspection_link ? (
+                ) : row.inspection_link && !isViewer ? (
                   <a
                     href={row.inspection_link}
                     target="_blank"
